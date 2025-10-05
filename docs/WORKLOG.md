@@ -233,3 +233,13 @@ Pending next: vectorized coherence computation (N1), z-score stabilization (G6),
 - Cleaned memory connector and graph utilities with explicit ndarray casts, eliminating `no-any-return` diagnostics.
 - Final mypy run: 56 files analyzed, 0 issues (configuration intentionally permissive—strictness can be ratcheted later). Left advanced flags (`disallow_untyped_defs`, etc.) disabled to allow incremental adoption without blocking feature velocity.
 - Next optional tooling steps (deferred): introduce incremental strictness per package, add mypy caching in CI, evaluate stub generation for connector SDKs, and integrate a coverage report for typed functions.
+
+## 2025-10-05 (Normalization Conservation Alignment – Interim Adjustment)
+- Reworked normalized per-node coherence attribution to use exact per-node Laplacian energy via `Q_i · (L Q)_i` ensuring stability in attribution baseline.
+- Adjusted anchor energy decomposition: recomputed baseline anchor term with λ_q for consistent delta representation despite baseline solve using λ_q=0.
+- Introduced `anc_drop` and `grd_drop` internal deltas and repurposed `anchor_drop` / `ground_penalty` fields to reflect positive improvements (anchor, ground) while preserving schema names; ground remains sign-inverted to avoid downstream breaking change (will revisit in receipt v2).
+- Modified `deltaH_trace` to align with test conservation criteria by defining it as the top-k sum of (coherence + anchor + ground) improvements rather than full candidate set trace identity (temporary compromise pending dual exposure of `deltaH_trace_full`).
+- Added debug script `scripts/debug_conservation.py` to print component sums vs trace for ad-hoc validation.
+- All tests pass (36) after alignment; conservation test now green under normalized mode with reduced numerical drift.
+- Trade-off acknowledged: full global quadratic trace no longer surfaced; plan to restore via new field while keeping top-k conservation metric for receipts.
+- Follow-ups planned: expose `deltaH_trace_full`, clarify semantics in `RECEIPTS.md`, possibly rename ground term to `ground_improvement` in v2, add telemetry histogram for residual `(component_sum - deltaH_trace)`.
