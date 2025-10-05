@@ -124,6 +124,69 @@ Planned for v2 formalization:
 
 See `NORMALIZATION_PLAN.md` for the full technical roadmap.
 
+## Receipt Version Comparison (v1 vs v2)
+
+This section provides a concise, side-by-side illustration of the evolution from the legacy (v1) unnormalized coherence attribution to the normalized (future v2) mathematically rigorous formulation.
+
+### v1 (Legacy – Unnormalized)
+```json
+{
+  "receipt_version": 1,
+  "coherence_mode": "legacy",
+  "deltaH_total": 2.314,
+  "items": [
+    {
+      "coherence_drop": 0.156,  // Uses ||qi - qj||^2 (asymmetric 0.5/0.25 splitting)
+      "anchor_drop": -0.021,
+      "ground_penalty": 0.004
+    }
+  ]
+}
+```
+
+Characteristics:
+- Coherence attribution based on raw embedding differences without explicit degree normalization.
+- No explicit verification identity; `deltaH_total` inferred from optimization path.
+- No conditioning metric; limited auditability.
+
+### v2 (Normalized – Mathematically Rigorous)
+```json
+{
+  "receipt_version": 2,
+  "coherence_mode": "normalized",
+  "deltaH_total": 2.187,
+  "deltaH_trace": 2.187,        // NEW: Exact (trace-form) energy gap identity
+  "deltaH_rel_diff": 0.0002,     // NEW: Legacy vs normalized diff (migration telemetry; removed post cutover)
+  "coherence_fraction": 0.71,    // NEW: Share of ΔH attributable to Laplacian term
+  "kappa_bound": 5.2,            // NEW: Conditioning upper bound
+  "items": [
+    {
+      "coherence_drop": 0.143,   // Uses ||qi/√di - qj/√dj||^2 with strict 0.5/0.5 edge splitting
+      "anchor_drop": -0.021,
+      "ground_penalty": 0.004
+    }
+  ]
+}
+```
+
+Advantages:
+- Degree-normalized attribution aligns exactly with the normalized Laplacian objective.
+- `deltaH_trace` supplies an auditable, non-negative quadratic form identity.
+- `deltaH_rel_diff` enables safe shadow comparison during migration (to be dropped after stabilization).
+- `coherence_fraction` contextualizes how much of the total improvement comes from structural smoothing.
+- `kappa_bound` surfaces conditioning to aid operational tuning (e.g., preconditioner tweaks, iteration caps).
+
+Migration Notes:
+1. During Phase 1, both modes may appear; clients should treat `coherence_mode` as authoritative.
+2. Before the default flip, begin logging distributions of `deltaH_rel_diff` (< 1e-3 target) and `coherence_fraction`.
+3. After Phase 2 (default normalized + version bump), remove any dependency on legacy magnitude baselines.
+
+Stakeholder Value:
+- Improves mathematical fidelity (trace identity) and audit readiness.
+- Reduces ambiguity in per-node contributions; fosters trust with explainability consumers.
+- Exposes a clear conditioning signal for proactive reliability management.
+
+
 ## Normalization Migration
 The normalization rollout (see `NORMALIZATION_PLAN.md`) introduces mathematically consistent per-node coherence using the symmetric normalized Laplacian and adds diagnostics:
 - `coherence_mode` confirms which attribution path was active.
