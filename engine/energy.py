@@ -75,46 +75,10 @@ def per_node_components(
     # is retained only for legacy invocation paths (should be phased out).
     coh_norm: np.ndarray | None = None
     if len(w) > 0:
-        # Undirected grouping key
-        key_src = rows
-        key_dst = cols
-        u = np.minimum(key_src, key_dst)
-        v = np.maximum(key_src, key_dst)
-        undirected_key = u.astype(np.int64) * N + v.astype(np.int64)
-        # Degree-normalized embeddings (prefer supplied true degrees)
-        if deg is None:
-            # Fallback (will be close to 1 for many nodes; not theoretically correct)
-            degs_eff = np.asarray(Ahat.sum(axis=1)).ravel() + 1e-12
-        else:
-            degs_eff = deg.astype(np.float64) + 1e-12
-        inv_sqrt_d = 1.0 / np.sqrt(degs_eff)
-        Qn = Q * inv_sqrt_d[:, None]
-        # If future formulations need original X distances under normalization, compute Xn similarly:
-        # Xn = X * inv_sqrt_d[:, None]
-        diffs2 = Qn[rows] - Qn[cols]
-        dist2 = np.einsum("ij,ij->i", diffs2, diffs2)
-        wd = w * dist2
-        order = np.argsort(undirected_key)
-        uk_sorted = undirected_key[order]
-        wd_sorted = wd[order]
-        u_sorted = u[order]
-        v_sorted = v[order]
-        coh_norm_raw = np.zeros(N, dtype=np.float64)
-        if len(order) > 0:
-            boundary = np.concatenate(([True], uk_sorted[1:] != uk_sorted[:-1]))
-            idxs = np.nonzero(boundary)[0]
-            ps = np.cumsum(wd_sorted)
-            grp_starts = idxs
-            grp_ends = np.concatenate((idxs[1:], [len(uk_sorted)]))
-            for gs, ge in zip(grp_starts, grp_ends):
-                total = ps[ge - 1] - (ps[gs - 1] if gs > 0 else 0.0)
-                ui = u_sorted[gs]
-                vi = v_sorted[gs]
-                half = 0.5 * total
-                coh_norm_raw[ui] += half
-                if vi != ui:
-                    coh_norm_raw[vi] += half
-        coh_norm = coh_norm_raw
+        # Exact per-node Laplacian energy attribution: Tr(Q^T L Q) = Σ_i Q_i · (L Q)_i
+        # This guarantees conservation when differences between two solutions are taken.
+        LQ = L @ Q  # sparse matmul
+        coh_norm = np.einsum("ij,ij->i", Q, LQ)
 
     anc = np.sum((Q - y[None, :]) ** 2, axis=1) * (b[:N] if b.shape[0] >= N else 0.0)
     grd = np.sum((Q - X) ** 2, axis=1)

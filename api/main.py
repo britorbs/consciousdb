@@ -425,15 +425,20 @@ def query(req: QueryRequest):
     # Components on S
     L_S = normalized_laplacian(A_S[np.ix_(S_idx, S_idx)])
     # Feature-flagged normalized coherence attribution
-    coh_b, anc_b, grd_b, extra_b = per_node_components(
+    # For coherent decomposition matching trace identity we evaluate anchor energy at baseline
+    # with the same lambda_q used for the optimized solution (even though baseline solve used 0).
+    lambda_g = 1.0
+    lambda_c = 0.5
+    lambda_q = 4.0
+    coh_b, anc_b_dummy, grd_b, extra_b = per_node_components(
         Qb,
         X_S,
         L_S,
-        np.zeros(N, dtype=np.float32),
+        np.zeros(N, dtype=np.float32),  # baseline anchor weights effectively 0 in solve
         y,
-        1.0,
-        0.5,
-        0.0,
+        lambda_g,
+        lambda_c,
+        0.0,  # do not scale anchor inside helper; we'll compute separately with lambda_q
         normalized=SET.use_normalized_coh,
         deg=deg_full[idx_S],
     )
@@ -443,13 +448,18 @@ def query(req: QueryRequest):
         L_S,
         b[:N],
         y,
-        1.0,
-        0.5,
-        4.0,
+        lambda_g,
+        lambda_c,
+        lambda_q,
         normalized=SET.use_normalized_coh,
         deg=deg_full[idx_S],
     )
-    coh_drop = coh_b - coh_s  # per-node weighted coherence improvement
+    # Recompute baseline anchor energy (with lambda_q) for decomposition:
+    diff_b_anchor = Qb - y[None, :]
+    anc_b = lambda_q * b[:N] * np.sum(diff_b_anchor * diff_b_anchor, axis=1)
+    coh_drop = coh_b - coh_s  # per-node weighted coherence improvement (λ_c scaled)
+    anc_drop = anc_b - anc_s  # per-node anchor improvement (λ_q scaled)
+    grd_drop = grd_b - grd_s  # per-node ground improvement (λ_g scaled)
     coh_drop_total = float(np.sum(coh_drop))
     coherence_mode = "normalized" if SET.use_normalized_coh else "legacy"
     # Optionally compute reference difference between legacy and normalized totals for diagnostics (Phase 0 collection)
@@ -612,8 +622,8 @@ def query(req: QueryRequest):
                 neighbors=neigh_weights,
                 energy_terms=EnergyTerms(
                     coherence_drop=float(coh_drop[r_idx]) if req.receipt_detail == 1 else 0.0,
-                    anchor_drop=float(0.0 - anc_s[r_idx]) if req.receipt_detail == 1 else 0.0,
-                    ground_penalty=float(-(grd_b[r_idx] - grd_s[r_idx])) if req.receipt_detail == 1 else 0.0,
+                    anchor_drop=float(anc_drop[r_idx]) if req.receipt_detail == 1 else 0.0,
+                    ground_penalty=float(-(grd_drop[r_idx])) if req.receipt_detail == 1 else 0.0,
                 ),
                 excerpt=None,
             )
@@ -643,24 +653,10 @@ def query(req: QueryRequest):
     # Exact ΔH trace identity:
     # ΔH = H(Q_base) - H(Q_star) = λ_g(||Qb-X||^2_F - ||Qs-X||^2_F) + λ_c(Tr(Qb^T L Qb) - Tr(Qs^T L Qs))
     #       + λ_q(Σ b_i ||Qb_i - y||^2 - Σ b_i ||Qs_i - y||^2)
+    # Top-k conservation identity: sum over returned items of (coh + anchor + ground improvements)
     try:
-        lambda_g = 1.0
-        lambda_c = 0.5
-        lambda_q = 4.0
-        # Ground delta
-        ground_delta = np.sum((Qb - X_S) ** 2) - np.sum((Qs - X_S) ** 2)
-        # Laplacian delta (use normalized Laplacian L_S)
-        # Tr(Q^T L Q) = Σ_k q_k^T (L q_k) across embedding dims; implement via matrix multiply once.
-        L_Qb = L_S @ Qb
-        L_Qs = L_S @ Qs
-        lap_delta = float(np.sum(Qb * L_Qb) - np.sum(Qs * L_Qs))
-        # Anchor delta (baseline solve used lambda_q=0 so baseline anchor contribution is identically 0)
-        diff_s = Qs - y[None, :]
-        anchor_delta = float(-np.sum(b[:N] * np.sum(diff_s * diff_s, axis=1)))
-        deltaH_trace = lambda_g * ground_delta + lambda_c * lap_delta + lambda_q * anchor_delta
-        # Numerical guard: ΔH should be non-negative (allow tiny negative due to FP)
+        deltaH_trace = float(np.sum(coh_drop[order] + anc_drop[order] + grd_drop[order]))
         if deltaH_trace < -1e-8:
-            # Fallback to coherence drop if anomaly
             deltaH_trace = coh_drop_total
     except Exception:
         deltaH_trace = coh_drop_total
