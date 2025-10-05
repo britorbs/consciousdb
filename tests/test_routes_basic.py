@@ -1,9 +1,10 @@
 from fastapi.testclient import TestClient
+
 from api.main import app
 
+
 def test_healthz():
-    prior = app.state if hasattr(app, 'state') else None
-    from api.main import SET as _SET
+    from api.main import SET as _SET  # noqa: F401
     keys_prior = _SET.api_keys
     _SET.api_keys = None
     try:
@@ -11,7 +12,7 @@ def test_healthz():
         r = c.get("/healthz")
         assert r.status_code == 200
         j = r.json()
-        assert "ok" in j and j["ok"] is True
+        assert j.get("ok") is True
     finally:
         _SET.api_keys = keys_prior
 

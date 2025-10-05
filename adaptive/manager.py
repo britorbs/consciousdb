@@ -11,10 +11,12 @@ Design notes:
 - Feature-gated via `ENABLE_ADAPTIVE` in settings; no-op if disabled.
 """
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import List, Optional, Dict, Tuple
-import json, os, tempfile
+
+import json
 import math
+import os
+import tempfile
+from dataclasses import dataclass, field
 
 MAX_EVENTS = 200  # ring buffer limit
 MIN_SAMPLE = 15
@@ -39,13 +41,17 @@ class FeedbackEvent:
 
 @dataclass
 class AdaptiveState:
-    events: List[FeedbackEvent] = field(default_factory=list)
-    suggested_alpha: Optional[float] = None
+    events: list[FeedbackEvent] = field(default_factory=list)
+    suggested_alpha: float | None = None
     last_computed_on: int = 0  # simple counter of events
     # Bandit
-    bandit_arms: List[BanditArm] = field(default_factory=lambda: [BanditArm(a) for a in DEFAULT_BANDIT_ARMS])
+    bandit_arms: list[BanditArm] = field(
+        default_factory=lambda: [BanditArm(a) for a in DEFAULT_BANDIT_ARMS]
+    )
     bandit_enabled: bool = False
-    bandit_query_arm: Dict[str, float] = field(default_factory=dict)  # query_id -> alpha chosen (for reward attribution)
+    bandit_query_arm: dict[str, float] = field(
+        default_factory=dict
+    )  # query_id -> alpha chosen (for reward attribution)
 
     def add(self, evt: FeedbackEvent):
         self.events.append(evt)
@@ -60,11 +66,11 @@ class AdaptiveState:
         # Compute point-biserial like correlation between deltaH_total and positive
         xs = [e.deltaH_total for e in self.events]
         ys = [1.0 if e.positive else 0.0 for e in self.events]
-        mean_x = sum(xs)/n
-        mean_y = sum(ys)/n
-        cov = sum((x - mean_x)*(y - mean_y) for x,y in zip(xs,ys)) / (n - 1 or 1)
-        var_x = sum((x - mean_x)**2 for x in xs) / (n - 1 or 1)
-        var_y = sum((y - mean_y)**2 for y in ys) / (n - 1 or 1)
+        mean_x = sum(xs) / n
+        mean_y = sum(ys) / n
+        cov = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys)) / (n - 1 or 1)
+        var_x = sum((x - mean_x) ** 2 for x in xs) / (n - 1 or 1)
+        var_y = sum((y - mean_y) ** 2 for y in ys) / (n - 1 or 1)
         if var_x <= 1e-9 or var_y <= 1e-9:
             self.suggested_alpha = None
             return
@@ -78,7 +84,7 @@ class AdaptiveState:
 
 STATE = AdaptiveState()
 # Query diagnostics cache: query_id -> (deltaH_total, redundancy)
-QUERY_CACHE: Dict[str, Tuple[float, float]] = {}
+QUERY_CACHE: dict[str, tuple[float, float]] = {}
 QUERY_CACHE_MAX = 500
 
 
@@ -92,7 +98,7 @@ def record_feedback(deltaH_total: float, redundancy: float, clicked: int, accept
         STATE.last_computed_on = len(STATE.events)
 
 
-def get_suggested_alpha() -> Optional[float]:
+def get_suggested_alpha() -> float | None:
     return STATE.suggested_alpha
 
 
@@ -107,7 +113,7 @@ def cache_query(query_id: str, deltaH_total: float, redundancy: float):
             pass
 
 
-def lookup_query(query_id: str) -> Optional[Tuple[float, float]]:
+def lookup_query(query_id: str) -> tuple[float, float] | None:
     return QUERY_CACHE.get(query_id)
 
 
@@ -138,7 +144,7 @@ def load_state(path: str) -> None:
     if not os.path.exists(path):
         return
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = json.load(f)
         STATE.events.clear()
         for raw in data.get("events", [])[-MAX_EVENTS:]:
@@ -156,7 +162,13 @@ def load_state(path: str) -> None:
             STATE.bandit_arms = []
             for ar in arms_raw:
                 try:
-                    STATE.bandit_arms.append(BanditArm(alpha=float(ar.get("alpha")), pulls=int(ar.get("pulls", 0)), reward_sum=float(ar.get("reward_sum", 0.0))))
+                    STATE.bandit_arms.append(
+                        BanditArm(
+                            alpha=float(ar.get("alpha")),
+                            pulls=int(ar.get("pulls", 0)),
+                            reward_sum=float(ar.get("reward_sum", 0.0)),
+                        )
+                    )
                 except Exception:
                     continue
     except Exception:
@@ -166,7 +178,7 @@ def load_state(path: str) -> None:
 
 
 # ---------------- Bandit (UCB1) -----------------
-def bandit_select(query_id: str) -> Optional[float]:
+def bandit_select(query_id: str) -> float | None:
     """Select an alpha arm via UCB1. Returns alpha or None if disabled.
 
     Must have STATE.bandit_enabled set externally (e.g., from settings) before calling.

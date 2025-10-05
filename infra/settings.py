@@ -1,6 +1,9 @@
 from __future__ import annotations
+
 import os
+
 from pydantic import BaseModel
+
 
 class Settings(BaseModel):
     use_mock: bool = os.getenv("USE_MOCK", "true").lower() in ("1","true","yes")

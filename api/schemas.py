@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import List, Optional, Dict, Any
+
 from pydantic import BaseModel, Field
+
 
 class Overrides(BaseModel):
     alpha_deltaH: float = 0.1
@@ -32,9 +33,9 @@ class Item(BaseModel):
     score: float
     align: float
     activation: float
-    neighbors: List[Neighbor] = []
+    neighbors: list[Neighbor] = []
     energy_terms: EnergyTerms
-    excerpt: Optional[str] = None
+    excerpt: str | None = None
 
 class Diagnostics(BaseModel):
     similarity_gap: float
@@ -51,7 +52,7 @@ class Diagnostics(BaseModel):
     cg_iters: int
     residual: float
     fallback: bool
-    timings_ms: Dict[str, float]
+    timings_ms: dict[str, float]
     receipt_version: int | None = None
     edge_count: int | None = None
     avg_degree: float | None = None
@@ -65,13 +66,13 @@ class Diagnostics(BaseModel):
     fallback_reason: str | None = None
 
 class QueryResponse(BaseModel):
-    items: List[Item]
+    items: list[Item]
     diagnostics: Diagnostics
     query_id: str | None = None
     version: str = "v2.0.0"
 
 class FeedbackRequest(BaseModel):
     query_id: str
-    clicked_ids: List[str] = []
-    accepted_id: Optional[str] = None
-    latency_ms: Optional[int] = None
+    clicked_ids: list[str] = []
+    accepted_id: str | None = None
+    latency_ms: int | None = None

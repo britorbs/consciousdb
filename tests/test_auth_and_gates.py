@@ -1,7 +1,8 @@
 from __future__ import annotations
-import os
+
 from fastapi.testclient import TestClient
-from api.main import app, SET
+
+from api.main import SET, app
 
 
 def test_auth_disabled_without_keys():

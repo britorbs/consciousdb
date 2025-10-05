@@ -1,6 +1,11 @@
-import os, json, tempfile, pathlib
+import json
+import os
+import pathlib
+import tempfile
+
 from fastapi.testclient import TestClient
-from api.main import app, SET
+
+from api.main import SET, app
 
 
 def test_audit_signature_present(monkeypatch):
@@ -26,7 +31,8 @@ def test_audit_signature_present(monkeypatch):
             # signature field should exist
             assert "signature" in obj
             # Recompute signature for verification
-            import hmac, hashlib
+            import hashlib
+            import hmac
             body_no_sig = {k:v for k,v in obj.items() if k != "signature"}
             recomputed = hmac.new(SET.audit_hmac_key.encode("utf-8"), json.dumps(body_no_sig, sort_keys=True).encode("utf-8"), hashlib.sha256).hexdigest()
             assert recomputed == obj["signature"]

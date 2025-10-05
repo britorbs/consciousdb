@@ -1,7 +1,9 @@
 import numpy as np
 from scipy import sparse
-from engine.solve import jacobi_precond_diag
+
 from engine.energy import normalized_laplacian
+from engine.solve import jacobi_precond_diag
+
 
 def test_spd_diag():
     A = sparse.csr_matrix([[0,1,0],[1,0,1],[0,1,0]], dtype=float)

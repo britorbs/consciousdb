@@ -1,8 +1,10 @@
 import numpy as np
 from scipy import sparse
 from scipy.sparse.linalg import spsolve
-from engine.solve import solve_block_cg
+
 from engine.energy import normalized_laplacian
+from engine.solve import solve_block_cg
+
 
 def test_dense_vs_cg():
     N, d = 10, 3

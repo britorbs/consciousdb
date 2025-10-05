@@ -1,8 +1,12 @@
 from __future__ import annotations
+
 import time
+
 import numpy as np
-from .base import BaseEmbedder
+
 from infra.logging import setup_logging
+
+from .base import BaseEmbedder
 
 _LOG = setup_logging()
 

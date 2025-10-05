@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
-from api.main import app, SET
+
+from api.main import SET, app
 
 
 def test_adaptive_alpha_suggestion_emerges(monkeypatch):

@@ -1,11 +1,13 @@
 from __future__ import annotations
-from typing import Any
+
 from infra.settings import Settings
+
+from .chroma import ChromaConnector
 from .memory import MemoryConnector
 from .pgvector import PgVectorConnector
 from .pinecone import PineconeConnector
-from .chroma import ChromaConnector
 from .vertex_ai import VertexConnector
+
 
 def get_connector(name: str, settings: Settings):
     name = name.lower()

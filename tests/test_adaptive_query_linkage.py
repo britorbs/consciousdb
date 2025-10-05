@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
-from api.main import app, SET
+
+from api.main import SET, app
+
 
 def test_query_feedback_linkage_and_metrics():
     SET.enable_adaptive = True
@@ -11,7 +13,7 @@ def test_query_feedback_linkage_and_metrics():
     j = r.json()
     qid = j.get("query_id")
     assert qid is not None
-    dH = j["diagnostics"]["deltaH_total"]
+    _ = j["diagnostics"]["deltaH_total"]  # access ensures field present
     # Provide feedback referencing query_id
     fb = c.post("/feedback", json={"query_id": qid, "clicked_ids": ["docX"], "accepted_id": None})
     assert fb.status_code == 200

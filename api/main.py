@@ -1,54 +1,66 @@
 from __future__ import annotations
-import os
-import hmac
+
 import hashlib
-import time
+import hmac
 import json
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+import logging
+import os
+import time
+import uuid
+from contextlib import asynccontextmanager
+
 import numpy as np
 from fastapi import FastAPI, HTTPException, Request
-from contextlib import asynccontextmanager
 from fastapi.responses import JSONResponse
-import uuid
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
+from adaptive.manager import (
+    STATE as ADAPTIVE_STATE,
+)
+from adaptive.manager import (
+    bandit_record_reward,
+    bandit_select,
+    cache_query,
+    get_suggested_alpha,
+    lookup_query,
+    record_feedback,
+)
+from adaptive.manager import (
+    load_state as adaptive_load_state,
+)
+from adaptive.manager import (
+    save_state as adaptive_save_state,
+)
 from api.schemas import (
-    QueryRequest,
-    QueryResponse,
+    Diagnostics,
+    EnergyTerms,
+    FeedbackRequest,
     Item,
     Neighbor,
-    EnergyTerms,
-    Diagnostics,
-    FeedbackRequest,
+    QueryRequest,
+    QueryResponse,
 )
-from infra.settings import Settings
-from infra.logging import setup_logging
-import logging
-
-# Engine
-from engine.solve import solve_block_cg
-from engine.energy import per_node_components, normalized_laplacian
-from engine.rank import zscore
-from graph.build import induce_subgraph, one_hop_expand, knn_adjacency
-from infra.metrics import observe_query
-from adaptive.manager import (
-    record_feedback,
-    get_suggested_alpha,
-    cache_query,
-    lookup_query,
-    STATE as ADAPTIVE_STATE,
-    load_state as adaptive_load_state,
-    save_state as adaptive_save_state,
-    bandit_select,
-    bandit_record_reward,
-)
-from infra.metrics import observe_query
-from infra.metrics import observe_adaptive_feedback
-from infra.metrics import BANDIT_ARM_SELECT, observe_bandit_snapshot
-from infra.metrics import FALLBACK_REASON
-from infra.metrics import ADAPTIVE_STATE_LOAD_FAILURE, ADAPTIVE_STATE_SAVE_FAILURE
 
 # Connectors & embedders
 from connectors.registry import get_connector
 from embedders.registry import get_embedder
+from engine.energy import normalized_laplacian, per_node_components
+from engine.rank import zscore
+
+# Engine
+from engine.solve import solve_block_cg
+from graph.build import knn_adjacency
+from infra.logging import setup_logging
+from infra.metrics import (
+    ADAPTIVE_STATE_LOAD_FAILURE,
+    ADAPTIVE_STATE_SAVE_FAILURE,
+    BANDIT_ARM_SELECT,
+    FALLBACK_REASON,
+    observe_adaptive_feedback,
+    observe_bandit_snapshot,
+    observe_query,
+)
+from infra.settings import Settings
 
 _BASE_LOG = setup_logging()
 
@@ -103,7 +115,13 @@ async def lifespan(app: FastAPI):
             adaptive_load_state(SET.adaptive_state_path)
             # Propagate bandit enable flag into state
             ADAPTIVE_STATE.bandit_enabled = SET.enable_bandit
-            LOG.info("adaptive_state_loaded", extra={"events": len(ADAPTIVE_STATE.events), "suggested_alpha": ADAPTIVE_STATE.suggested_alpha})
+            LOG.info(
+                "adaptive_state_loaded",
+                extra={
+                    "events": len(ADAPTIVE_STATE.events),
+                    "suggested_alpha": ADAPTIVE_STATE.suggested_alpha,
+                },
+            )
         except Exception as e:  # pragma: no cover
             ADAPTIVE_STATE_LOAD_FAILURE.inc()
             LOG.warning("adaptive_state_load_failed", extra={"error": str(e)})
@@ -275,7 +293,7 @@ def query(req: QueryRequest):
                 easy_gate=True,
                 coh_gate=False,
                 max_residual=0.0,
-                deltaH_total=0.0,
+                delta_h_total=0.0,
                 low_impact_gate=False,
                 neighbors_present=False,
             )
@@ -369,9 +387,10 @@ def query(req: QueryRequest):
         iters_cap=req.overrides.iters_cap, residual_tol=req.overrides.residual_tol, warm_start=X_ctx
     )
     # Restrict back to S
-    pos = {idx:i for i, idx in enumerate(S_ctx)}
+    pos = {idx: i for i, idx in enumerate(S_ctx)}
     idx_S = np.array([pos[i] for i in S_idx], dtype=int)
-    Qs = Q_star[idx_S]; Qb = Q_base[idx_S]
+    Qs = Q_star[idx_S]
+    Qb = Q_base[idx_S]
     # Components on S
     L_S = normalized_laplacian(A_S[np.ix_(S_idx, S_idx)])
     coh_b, anc_b, grd_b = per_node_components(Qb, X_S, L_S, np.zeros(N, dtype=np.float32), y, 1.0, 0.5, 0.0)
@@ -484,7 +503,7 @@ def query(req: QueryRequest):
             neighbors=neigh_weights,
             energy_terms=EnergyTerms(
                 coherence_drop=float(coh_drop[r_idx]),
-                anchor_drop=float((0.0 - anc_s[r_idx])),
+                anchor_drop=float(0.0 - anc_s[r_idx]),
                 ground_penalty=float(-(grd_b[r_idx] - grd_s[r_idx])),
             ),
             excerpt=None
@@ -554,7 +573,7 @@ def query(req: QueryRequest):
             easy_gate=False,
             coh_gate=not used_deltaH,
             max_residual=float(resid),
-            deltaH_total=coh_drop_total,
+            delta_h_total=coh_drop_total,
             low_impact_gate=not used_deltaH,
             neighbors_present=any(len(it.neighbors) > 0 for it in items),
         )

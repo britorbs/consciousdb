@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
-from api.main import app, SET
+
 from adaptive.manager import STATE
+from api.main import SET, app
+
 
 def test_bandit_selection_and_reward(monkeypatch):
     SET.enable_adaptive = True

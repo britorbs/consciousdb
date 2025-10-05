@@ -1,7 +1,9 @@
-import os
 import json
+import os
+
 from fastapi.testclient import TestClient
-from api.main import app, SET
+
+from api.main import SET, app
 
 
 def test_audit_log_written(tmp_path):

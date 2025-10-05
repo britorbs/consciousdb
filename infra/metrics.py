@@ -1,10 +1,10 @@
 from __future__ import annotations
+
 """Prometheus metrics registry and helpers.
 
-This module centralizes metric definitions so they can be imported without
-creating duplicate time series when reloaded in tests.
+Centralizes metric definitions to avoid duplicate time series in tests.
 """
-from prometheus_client import Counter, Histogram, Gauge
+from prometheus_client import Counter, Gauge, Histogram  # noqa: E402
 
 # Buckets tuned for sub-ms to multi-second latencies (log-ish progression)
 QUERY_LATENCY_MS = Histogram(
@@ -27,7 +27,9 @@ ITERATIONS = Histogram(
     "conscious_solver_iterations", "Per-dimension solver iteration counts", buckets=(1, 2, 3, 5, 8, 13, 21, 34)
 )
 REDUNDANCY = Histogram(
-    "conscious_redundancy", "Average pairwise cosine redundancy of preliminary top-k", buckets=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)
+    "conscious_redundancy",
+    "Average pairwise cosine redundancy of preliminary top-k",
+    buckets=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
 )
 MMR_APPLIED = Counter(
     "conscious_mmr_applied_total", "Count of queries where MMR diversification executed"
@@ -100,7 +102,6 @@ ADAPTIVE_STATE_SAVE_FAILURE = Counter(
 
 def observe_bandit_snapshot(arms):
     for arm in arms:
-        from math import isfinite
         if arm.pulls > 0:
             BANDIT_ARM_REWARD.labels(alpha=str(arm.alpha)).set(arm.reward_sum / arm.pulls)
 
@@ -118,7 +119,7 @@ def observe_query(
     easy_gate: bool,
     coh_gate: bool,
     max_residual: float,
-    deltaH_total: float | None = None,
+    delta_h_total: float | None = None,
     low_impact_gate: bool = False,
     neighbors_present: bool | None = None,
 ) -> None:
@@ -142,8 +143,8 @@ def observe_query(
     ).inc()
     MAX_RESIDUAL.set(max_residual)
     # New metrics
-    if deltaH_total is not None:
-        DELTAH_TOTAL.observe(deltaH_total)
+    if delta_h_total is not None:
+        DELTAH_TOTAL.observe(delta_h_total)
     if easy_gate:
         GATE_EASY.inc()
     if low_impact_gate:
@@ -154,7 +155,7 @@ def observe_query(
     # Completeness heuristic: count how many receipt fields present out of 3
     present = 0
     denom = 3
-    if deltaH_total is not None:
+    if delta_h_total is not None:
         present += 1
     if redundancy is not None:
         present += 1

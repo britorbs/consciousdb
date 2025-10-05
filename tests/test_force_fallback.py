@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
-from api.main import app, SET
+
+from api.main import SET, app
+
 
 def test_force_fallback_flag():
     prior = SET.api_keys

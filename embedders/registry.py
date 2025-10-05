@@ -1,8 +1,7 @@
 from __future__ import annotations
-from infra.settings import Settings
+
 from .sentence_transformer import SentenceTransformerEmbedder
-from .openai import OpenAIEmbedder
-from .vertex_ai import VertexAIEmbedder
+
 
 def get_embedder(name: str):
     name = name.lower()

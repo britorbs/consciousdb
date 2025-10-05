@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import numpy as np
+
 
 def zscore(x: np.ndarray) -> np.ndarray:
     if x.size == 0:
@@ -29,5 +31,7 @@ def mmr(ids, vectors, scores, lambda_mmr=0.3, k=8):
             if val > best_val:
                 best_val = val
                 best_j = j
-        selected.append(best_j); remaining.remove(best_j); out.append(ids[best_j])
+    selected.append(best_j)
+    remaining.remove(best_j)
+    out.append(ids[best_j])
     return out

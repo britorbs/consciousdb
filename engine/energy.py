@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 import numpy as np
 from scipy import sparse
+
 
 def normalized_laplacian(A: np.ndarray | sparse.csr_matrix) -> sparse.csr_matrix:
     if not isinstance(A, sparse.csr_matrix):
@@ -22,8 +24,8 @@ def per_node_components(Q: np.ndarray, X: np.ndarray, L: sparse.csr_matrix, b: n
     This matches the previous loop-based behavior exactly (including asymmetric cases).
     """
     N, d = Q.shape
-    I = sparse.eye(L.shape[0], format="csr")
-    Ahat = (I - L).tocsr()
+    identity_mat = sparse.eye(L.shape[0], format="csr")
+    Ahat = (identity_mat - L).tocsr()
 
     # Extract directed edges
     indptr = Ahat.indptr

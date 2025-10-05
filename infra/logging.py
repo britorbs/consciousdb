@@ -1,15 +1,16 @@
 from __future__ import annotations
-import logging
+
 import json
+import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:  # noqa: D401
         payload = {
-            "ts": datetime.fromtimestamp(record.created, tz=timezone.utc).isoformat(),
+            "ts": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "msg": record.getMessage(),
@@ -19,7 +20,29 @@ class JsonFormatter(logging.Formatter):
             payload["request_id"] = getattr(record, "request_id")
         # Attach any extra (non standard) attributes added via LoggerAdapter
         for k, v in getattr(record, "__dict__", {}).items():
-            if k not in payload and k not in ("args", "msg", "levelname", "levelno", "created", "msecs", "relativeCreated", "name", "message", "exc_info", "exc_text", "stack_info", "lineno", "pathname", "filename", "module", "funcName", "thread", "threadName", "process", "processName"):
+            if k not in payload and k not in (
+                "args",
+                "msg",
+                "levelname",
+                "levelno",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "name",
+                "message",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "pathname",
+                "filename",
+                "module",
+                "funcName",
+                "thread",
+                "threadName",
+                "process",
+                "processName",
+            ):
                 if not k.startswith("_"):
                     payload[k] = v
         if record.exc_info:

@@ -1,13 +1,28 @@
 from __future__ import annotations
+
 import numpy as np
 from scipy import sparse
 from scipy.sparse.linalg import cg
 
-def jacobi_precond_diag(lambda_g: float, L: sparse.csr_matrix, lambda_c: float, B_diag: np.ndarray, lambda_q: float) -> np.ndarray:
+
+def jacobi_precond_diag(
+    lambda_g: float,
+    L: sparse.csr_matrix,
+    lambda_c: float,
+    B_diag: np.ndarray,
+    lambda_q: float,
+) -> np.ndarray:
     diag_L = L.diagonal()
     return lambda_g + lambda_c * diag_L + lambda_q * B_diag
 
-def apply_M(Q: np.ndarray, lambda_g: float, L: sparse.csr_matrix, lambda_c: float, B_diag: np.ndarray, lambda_q: float) -> np.ndarray:
+def apply_M(
+    Q: np.ndarray,
+    lambda_g: float,
+    L: sparse.csr_matrix,
+    lambda_c: float,
+    B_diag: np.ndarray,
+    lambda_q: float,
+) -> np.ndarray:
     return lambda_g * Q + lambda_c * (L @ Q) + lambda_q * (B_diag[:, None] * Q)
 
 def solve_block_cg(

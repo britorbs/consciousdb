@@ -1,5 +1,7 @@
 from __future__ import annotations
+
 import numpy as np
+
 
 def induce_subgraph(A: np.ndarray, idx: np.ndarray) -> np.ndarray:
     return A[np.ix_(idx, idx)]

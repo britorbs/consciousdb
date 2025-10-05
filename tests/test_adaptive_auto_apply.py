@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
-from api.main import app, SET
+
+from api.main import SET, app
+
 
 def test_adaptive_auto_apply(monkeypatch):
     # Simulate suggested alpha present

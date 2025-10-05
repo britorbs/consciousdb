@@ -1,5 +1,7 @@
 from fastapi.testclient import TestClient
+
 from api.main import app
+
 
 def test_health_endpoint():
     c = TestClient(app)
