@@ -7,8 +7,8 @@ name = "consciousdb-sidecar"
 version = "0.1.0"
 description = "ConsciousDB Sidecar – model-free coherence optimization layer for vector retrieval"
 readme = "README.md"
-# SPDX license string (table form deprecated in future setuptools versions)
-license = "BSL-1.1"
+# Business Source License 1.1 is not an SPDX identifier; point to LICENSE file.
+license = { file = "LICENSE" }
 authors = [
 	{ name = "ConsciousDB Authors" }
 ]
