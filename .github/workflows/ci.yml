@@ -26,24 +26,41 @@ jobs:
       - name: Install project (core + dev)
         run: |
           pip install --upgrade pip
-          pip install .[dev]
+          pip install .[dev,security]
+          pip install build
 
       - name: Lint (ruff)
         run: |
           ruff check .
 
-      - name: Type check (mypy placeholder)
+      - name: Type check (mypy)
         run: |
-          echo "(Placeholder) Add mypy config later" \
-            && echo "Skipping strict type check until mypy.ini present"
+          mypy --install-types --non-interactive .
 
       - name: Run tests with coverage
         run: |
-          pytest -q --cov=./ --cov-report=xml --cov-report=term
+          pytest -q --cov=./ --cov-report=xml --cov-report=term --maxfail=1
+      - name: Enforce coverage threshold
+        shell: bash
+        run: |
+          python - <<'PY'
+            import xml.etree.ElementTree as ET, sys
+            root = ET.parse('coverage.xml').getroot()
+            rate = float(root.get('line-rate', '0')) * 100
+            threshold = 60.0
+            print(f"Line coverage: {rate:.2f}% (threshold {threshold}%)")
+            if rate < threshold:
+                print("::error::Coverage below threshold")
+                sys.exit(1)
+          PY
 
       - name: Build wheel
         run: |
-          python -m build --wheel || python setup.py bdist_wheel || echo "Fallback build path used"
+          python -m build --wheel
+
+      - name: Security audit (pip-audit)
+        run: |
+          pip-audit -r requirements.txt || true
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4

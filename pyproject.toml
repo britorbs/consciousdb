@@ -7,7 +7,8 @@ name = "consciousdb-sidecar"
 version = "0.1.0"
 description = "ConsciousDB Sidecar – model-free coherence optimization layer for vector retrieval"
 readme = "README.md"
-license = { file = "LICENSE" }
+# SPDX license string (table form deprecated in future setuptools versions)
+license = "BSL-1.1"
 authors = [
 	{ name = "ConsciousDB Authors" }
 ]
@@ -32,6 +33,17 @@ dependencies = [
 	"prometheus-client==0.20.0"
 ]
 
+[tool.setuptools]
+packages = [
+	"adaptive",
+	"api",
+	"connectors",
+	"embedders",
+	"engine",
+	"graph",
+	"infra"
+]
+
 [project.optional-dependencies]
 connectors-pgvector = ["psycopg2-binary==2.9.9"]
 connectors-pinecone = ["pinecone-client==3.2.2"]
@@ -46,11 +58,14 @@ dev = [
 	"types-requests",
 	"ruff>=0.5.0"
 ]
+security = [
+	"pip-audit>=2.7.0"
+]
 
 [project.urls]
-Homepage = "https://github.com/your-org/consciousdb-sidecar"
-Repository = "https://github.com/your-org/consciousdb-sidecar"
-Issues = "https://github.com/your-org/consciousdb-sidecar/issues"
+Homepage = "https://github.com/Maverick0351a/consciousdb"
+Repository = "https://github.com/Maverick0351a/consciousdb"
+Issues = "https://github.com/Maverick0351a/consciousdb/issues"
 
 [tool.ruff]
 line-length = 100
