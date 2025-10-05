@@ -76,3 +76,30 @@ def test_metrics_exposes_coherence_mode_counter():
     assert metrics.status_code == 200
     body = metrics.text
     assert "conscious_coherence_mode_total" in body
+
+
+def test_energy_conservation():
+    """Verify sum of per-item components approximates deltaH_trace under normalized mode.
+
+    This test enforces the emerging quadratic identity: deltaH_trace should equal the
+    (coherence + anchor - ground) contribution aggregated per item (within FP tolerance).
+    We force normalized mode; if the environment / import order still yields legacy mode
+    we allow the assertion to proceed (legacy path may not yet satisfy tight conservation).
+    """
+    resp = run_query(True)
+    diag = resp["diagnostics"]
+    items = resp["items"]
+    # Extract per-item weighted components
+    total_coh = sum(it["energy_terms"]["coherence_drop"] for it in items)
+    total_anc = sum(it["energy_terms"]["anchor_drop"] for it in items)
+    total_grd = sum(it["energy_terms"]["ground_penalty"] for it in items)
+    component_sum = total_coh + total_anc - total_grd
+    deltaH_trace = diag["deltaH_trace"]
+    # Only assert tight conservation when trace is non-trivial
+    if abs(deltaH_trace) > 1e-9:
+        assert abs(component_sum - deltaH_trace) < 1e-6, (
+            f"component_sum={component_sum} deltaH_trace={deltaH_trace} diff={component_sum - deltaH_trace}"
+        )
+    else:
+        # Degenerate case: both should be near zero
+        assert abs(component_sum) < 1e-6
