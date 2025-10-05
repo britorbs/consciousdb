@@ -1,5 +1,9 @@
 # ConsciousDB – The Coherence Layer for AI Retrieval
 
+<p align="center">
+  <img src="docs/Wordmark%20Logo%20for%20ConsciousDB.svg" alt="ConsciousDB Wordmark" width="420" />
+</p>
+
 <!-- Badges (activate once CI visible) -->
 <!-- CI -->
 ![CI](https://img.shields.io/github/actions/workflow/status/your-org/consciousdb-sidecar/ci.yml?branch=main&label=CI)
