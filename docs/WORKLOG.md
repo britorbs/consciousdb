@@ -144,3 +144,17 @@ Pending next: vectorized coherence computation (N1), z-score stabilization (G6),
 - Added size rotation before each audit/feedback append in both easy and full pipeline paths without impacting hot path latency (try/except guarded best-effort).
 - Verified via smoke test with env flags (`ENABLE_ADAPTIVE`, `ENABLE_BANDIT`, `ENABLE_ADAPTIVE_APPLY`, `ENABLE_AUDIT_LOG`) that bandit alpha application, fallback forced path, and feedback reward attribution operate correctly after changes.
 - Test suite remains fully green (27 tests) post-hardening; no new warnings beyond existing torch CUDA deprecation notice.
+
+## 2025-10-05 (Lint Convergence & Config Migration)
+- Comprehensive Ruff cleanup pass completed: eliminated remaining multi-statement lines, wrapped long lines, removed unused variables/imports, and renamed ambiguous single-letter matrix `I` to `identity_mat` for clarity.
+- Balanced style strategy adopted: per-file ignores for mathematical symbol naming (`N8xx`) limited to `engine/`, `graph/`, adaptive manager, and tests; avoids mass renaming that would reduce readability.
+- Increased Ruff line length to 120 to accommodate mathematical expressions without awkward wraps.
+- Migrated deprecated Ruff configuration keys to new `[tool.ruff.lint]` and `[tool.ruff.lint.per-file-ignores]` schema (removes deprecation warnings in CI).
+- Added `tests/conftest.py` plus `sitecustomize.py` to ensure local package imports (`api`, `engine`, etc.) succeed during test runs without editable install; resolves prior `ModuleNotFoundError` issues after lint refactors.
+- Standardized import style in `tests/conftest.py` (split multi-import, sorted, blank line after header comment) and auto-formatted with Ruff.
+- Verified clean lint state: `ruff check .` returns "All checks passed"; integrated into pre-commit workflow (already present) with autofix enabled.
+- Test suite re-run post changes: all 27 tests passing; no functional regressions introduced by stylistic updates.
+- Committed & pushed two commits:
+	- `chore(lint): apply balanced ruff cleanup...` (main lint remediation & test path setup)
+	- `chore(lint): migrate ruff config to lint.* schema and fix conftest imports` (schema migration + final import polish)
+- Established foundation for future additions (optional: add mypy pre-commit, coverage badge) without blocking current release stability.
