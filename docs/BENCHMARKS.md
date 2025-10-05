@@ -20,8 +20,8 @@ Establish consistent measurement of relevance uplift, latency, and stability.
 | Redundancy | Mean pairwise cosine in top-K | Used for conditional MMR gating |
 
 ## Data Preparation
-1. Collect representative query set (≥200) with relevance judgments (implicit or explicit).  
-2. Store as JSONL: `{ "query": "...", "relevant": ["doc_id1", ...] }`.  
+1. Collect representative query set (≥200) with relevance judgments (implicit or explicit).
+2. Store as JSONL: `{ "query": "...", "relevant": ["doc_id1", ...] }`.
 3. Ensure embeddings in underlying vector DB correspond to same corpus snapshot.
 
 ## Harness Outline (Pseudo)
@@ -37,10 +37,10 @@ Vector-only baseline can be approximated by invoking `/query` with overrides for
 
 ## Edge Overlap Validation
 When experimenting with approximate adjacency:
-1. Build exact mutual kNN (k=5) adjacency for sample of queries.  
-2. Build approximate adjacency.  
-3. Compute overlap = |E_exact ∩ E_approx| / |E_exact|.  
-4. Record distribution (median, P10).  
+1. Build exact mutual kNN (k=5) adjacency for sample of queries.
+2. Build approximate adjacency.
+3. Compute overlap = |E_exact ∩ E_approx| / |E_exact|.
+4. Record distribution (median, P10).
 5. If below threshold, tighten approximate parameters or fall back to exact.
 
 ## Reporting Template
@@ -67,7 +67,7 @@ Suggested Alpha (median): 0.11
 - Negative correlation between redundancy and uplift: consider enabling MMR earlier or adjusting threshold.
 
 ## Automation & CI Guards (Future)
-- Store baseline JSON with benchmark summary.  
+- Store baseline JSON with benchmark summary.
 - CI job re-runs harness on sample; fail if P95 latency > baseline * 1.25 or nDCG uplift < configured floor.
 
 ## Related

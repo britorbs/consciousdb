@@ -2,6 +2,8 @@
 
 Deep dive into alpha suggestion (adaptive) and UCB1 bandit exploration.
 
+This document now also formalizes reward semantics and the relationship between baseline alignment, uplift, and coherence improvement (ΔH / deltaH_total).
+
 ## Goals
 - Stabilize ranking quality across heterogeneous corpora without manual α tuning.
 - Explore alternative α values to improve acceptance/click reward.
@@ -60,6 +62,68 @@ update arm stats; persist state
 4. Environment default `ALPHA_DELTAH`
 
 `diagnostics.alpha_source` enumerates: `suggested`, `bandit`, `manual`.
+
+## Reward Semantics & Scoring Signals
+
+We expose three distinct but related quantitative signals:
+
+| Signal | Symbol | Definition | Scope | Usage |
+|--------|--------|------------|-------|-------|
+| Baseline Alignment | a_i^base | Raw cosine similarity of original embedding x_i with query y | Per-item | Comparator for uplift; fallback score when coherence gate off |
+| Smoothed Alignment | a_i^smooth | Cosine similarity of solved embedding q_i with y | Per-item | Blended with standardized coherence_drop via α |
+| Coherence Improvement | ΔH = Σ_i coherence_drop_i | Global | Measures structural uplift (energy reduction) induced by solver |
+| Per-item Uplift | u_i = a_i^smooth - a_i^base | Per-item | Diagnostic for how much structure benefited individual result |
+| Average Uplift | ū = mean_i u_i (returned items) | Global (returned subset) | Surfaced as `uplift_avg` for coarse efficiency snapshot |
+| Solver Efficiency | η = ΔH / solve_ms | Global | Normalizes structural gain by cost (ms) enabling runtime vs benefit trade-offs |
+| Component Count | C | Number of connected components in local kNN subgraph | Graph | Fragmentation diagnostic (higher C => low connectivity) |
+| Largest Component Ratio | ρ = |V_max| / N | Graph | Cohesion measure (near 1 ⇒ well-connected) |
+
+Interpretation guidelines:
+- High ΔH with modest ū can indicate coherent global smoothing where few individual items shift alignment dramatically (broad subtle uplift).
+- High ū with low ΔH suggests a small subset benefited strongly—potentially increasing α may overweight structural signal; monitor correlation.
+- Low η (efficiency) under latency pressure may justify lowering k or adjusting α if coherence gate rarely triggers.
+
+### Reward Mapping
+Feedback event reward (bandit + correlation) is currently:
+```
+reward = 1.0 if (accepted_id present OR any clicks) else 0.0
+```
+We DO NOT weight reward by uplift or ΔH to avoid reinforcing degenerate strategies that overfit to structural artifacts; coherence signals are treated as contextual features, not reward multipliers.
+
+Future variants may consider scaled rewards (e.g., reward * sigmoid(ū)) but only after guardrails for pathological boosts (e.g., adversarial embeddings) are in place.
+
+### Safety Bounds
+- α bounds [0.02, 0.5] prevent over-dominance of either coherence (z-scored) or alignment terms.
+- Uplift values are unconstrained but monitored; if |ū| > 0.6 (empirical outlier) consider flagging for investigation (future metric / alert TBD).
+- Component fragmentation: if C > 0.2N (very fragmented), solver efficiency may drop; a future heuristic could trigger reduced k or early exit.
+
+### When to Trust Uplift
+Trust per-item uplift (u_i) when:
+1. `used_deltaH` is true (coherence gate passed)
+2. Residual ≤ 2× tolerance (solver converged)
+3. Largest component ratio ρ ≥ 0.6 (graph sufficiently connected)
+
+If any fail, treat uplift as advisory only (avoid using for automated downstream boosts).
+
+## Baseline vs. Smoothed Alignment in Ranking
+Ranking blend (when coherence active):
+```
+score_i = α * z(coherence_drop_i) + (1 - α) * a_i^smooth
+```
+Baseline alignment a_i^base is not in the blend directly; it forms the counterfactual to quantify uplift. This separation ensures structural gain measurement without double-counting in scoring.
+
+## Extensibility Hooks
+Planned optional reward shaping fields (NOT active yet):
+- `implicit_depth_bonus` – dampens reward if accepted item was already ranked very high (reduces trivial wins)
+- `novelty_score` – penalize repeated click IDs across queries to encourage diversity exploration.
+
+## Metrics Alignment (New Diagnostics)
+Expose or planned metrics (some may be added if operational need confirmed):
+- solver_efficiency (gauge or distribution) – currently internal diagnostic, may promote to Prometheus.
+- component_count & largest_component_ratio – fragmentation monitoring; candidate for alerting if sustained deviation.
+- uplift_avg – high-level structural benefit health.
+
+All remain additive and optional; absent values (None) are not treated as errors.
 
 ## Failure Modes & Safeguards
 | Failure | Mitigation |

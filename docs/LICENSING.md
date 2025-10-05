@@ -11,7 +11,7 @@ This project uses the Business Source License 1.1 (BSL 1.1) with a timed convers
 | Investor alignment | De-risks immediate commoditization while signaling an open trajectory. |
 
 ## Key Dates
-- Change Date: **2028-10-05**  
+- Change Date: **2028-10-05**
 - On/after that date the code in this repository (as of that date) becomes **Apache-2.0**.
 
 ## Summary Matrix (Pre-Change Date)
@@ -32,16 +32,16 @@ On the Change Date the license switches to Apache-2.0 for the then-existing code
 By submitting a contribution you agree it is licensed under the then-current project license (BSL 1.1 with scheduled Apache conversion). If you cannot accept this, please do not submit contributions.
 
 ## Frequently Asked Questions
-**Is this Open Source?**  
+**Is this Open Source?**
 Not under the OSI definition until the Apache conversion; it is a Source-Available model with a predetermined permissive transition.
 
-**Can I fork and run my own hosted service now?**  
+**Can I fork and run my own hosted service now?**
 No; production / commercial hosting is restricted pre-change date.
 
-**How will dual versions be handled?**  
+**How will dual versions be handled?**
 At change time, a tag will denote the commit set converting to Apache-2.0. Any later BSL cycles (if used) will document their own future date.
 
-**Will the Change Date move?**  
+**Will the Change Date move?**
 We intend it to be a firm upper bound; earlier conversion is possible but extension is not planned.
 
 ## Contact

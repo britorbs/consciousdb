@@ -5,4 +5,3 @@ Cross-links: see `ALGORITHM.md` (mathematical formulation), `RECEIPTS.md` (schem
 (This file was renamed from `ConsciousDB_Simulations_Phases_A-G.md`.)
 
 <!-- Original detailed narrative preserved below with minimal edits -->
-

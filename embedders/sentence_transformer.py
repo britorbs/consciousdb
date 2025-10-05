@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
+from typing import Protocol
 
 import numpy as np
 
@@ -11,6 +13,16 @@ from .base import BaseEmbedder
 _LOG = setup_logging()
 
 
+class _SupportsEncode(Protocol):  # minimal protocol for mypy
+    def encode(
+        self,
+        texts: Sequence[str],
+        *,
+        normalize_embeddings: bool = ...,  # noqa: F722 (ellipsis acceptable in Protocol)
+    ) -> np.ndarray:  # pragma: no cover - protocol
+        ...
+
+
 class SentenceTransformerEmbedder(BaseEmbedder):
     """Lazy sentence-transformers loader with deterministic fallback.
 
@@ -18,7 +30,7 @@ class SentenceTransformerEmbedder(BaseEmbedder):
     placeholder embedding of dimension 32 is used.
     """
 
-    _model = None
+    _model: _SupportsEncode | None = None
     _model_dim: int | None = None
     _placeholder_state = 0xC0FFEE
 
@@ -33,6 +45,7 @@ class SentenceTransformerEmbedder(BaseEmbedder):
         start = time.time()
         try:
             import importlib
+
             st_mod = importlib.import_module("sentence_transformers")
             model_cls = getattr(st_mod, "SentenceTransformer")
             self._model = model_cls(self.model_name, device="cpu")
@@ -49,10 +62,10 @@ class SentenceTransformerEmbedder(BaseEmbedder):
                 },
             )
         except ModuleNotFoundError:
-                _LOG.warning(
-                    "embedder_module_missing",
-                    extra={"missing_module": "sentence_transformers", "fallback_dim": 32},
-                )
+            _LOG.warning(
+                "embedder_module_missing",
+                extra={"missing_module": "sentence_transformers", "fallback_dim": 32},
+            )
         except Exception as e:  # pragma: no cover
             _LOG.error(
                 "embedder_load_failed",
@@ -72,7 +85,9 @@ class SentenceTransformerEmbedder(BaseEmbedder):
     def embed_query(self, text: str) -> np.ndarray:
         self._ensure_loaded()
         if self._model is None:
-            return self._fallback_embed(text)
-        emb = self._model.encode([text], normalize_embeddings=True)
-        v = emb[0].astype(np.float32)
-        return v / (np.linalg.norm(v) + 1e-12)
+            emb_vec = self._fallback_embed(text)
+        else:
+            raw = self._model.encode([text], normalize_embeddings=True)
+            emb_vec = np.asarray(raw[0], dtype=np.float32)
+        norm = float(np.linalg.norm(emb_vec) + 1e-12)
+        return (emb_vec / norm).astype(np.float32, copy=False)

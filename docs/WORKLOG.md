@@ -158,3 +158,78 @@ Pending next: vectorized coherence computation (N1), z-score stabilization (G6),
 	- `chore(lint): apply balanced ruff cleanup...` (main lint remediation & test path setup)
 	- `chore(lint): migrate ruff config to lint.* schema and fix conftest imports` (schema migration + final import polish)
 - Established foundation for future additions (optional: add mypy pre-commit, coverage badge) without blocking current release stability.
+
+## 2025-10-05 (Plan A – Baseline/Uplift & Lightweight Receipts)
+- Extended `QueryRequest` with `receipt_detail` flag (1=full, 0=lightweight) enabling clients to trade explainability depth for lower payload & minor compute savings.
+- Added per-item `baseline_align` (pre-optimization similarity surrogate) and `uplift` (final align minus baseline) to quantify solver contribution.
+- Added solver-level diagnostics: `component_count`, `largest_component_ratio` (connected component analysis over kNN subgraph) and `solver_efficiency` (deltaH_total per ms).
+- Added `uplift_avg` (mean item uplift) to `Diagnostics` surface for quick aggregate view.
+- Implemented connected component traversal (BFS) over dense adjacency (k=5) – lightweight for recalled set sizes; gracefully falls back to None on exceptions.
+- Adjusted `/query` pipeline:
+	- Captures baseline alignment prior to ΔH-based blending.
+	- Computes uplift for each returned item.
+	- Applies lightweight mode by omitting neighbor lists & zeroing energy term contributions while still returning uplift & baseline fields.
+- Updated schemas (`api.schemas`) with new optional fields; maintained backward compatibility (kept `receipt_version=1`).
+- Added guard to ensure easy gate path also populates baseline/uplift trivially (uplift=0.0) for consistency.
+- All pre-existing 27 tests remain green (pytest run post-change); no receipt_version bump yet since fields are additive & optional.
+- Next steps: expose new Prometheus metrics (component_count, largest_component_ratio, solver_efficiency, uplift_avg), add JSON Schema & validation tests, expand docs on reward semantics and new diagnostics, and introduce CLI entrypoint.
+
+## 2025-10-05 (Plan A Completion – Schema Validation, Docs, CLI)
+- Added JSON Schema `schemas/query_response.schema.json` for `QueryResponse` (draft 2020-12) covering new optional baseline/uplift & diagnostic fields.
+- Implemented validation test `tests/test_schema_validation.py` using `jsonschema.validate` (dev extra) to guard response shape regressions (lightweight mode sample).
+- Created uplift & lightweight tests `tests/test_uplift_and_lightweight.py` verifying baseline_align/uplift presence and neighbor/energy stripping under `receipt_detail=0` with zeroed energy terms.
+- Extended `docs/ADAPTIVE.md` with reward semantics: differentiation of baseline alignment vs smoothed alignment vs uplift, solver efficiency η, component fragmentation metrics, safety bounds, and usage guidelines.
+- Introduced console script `consciousdb-sidecar` (entrypoint `api.cli:main`) enabling `consciousdb-sidecar --port 8080 --reload` launch without manual uvicorn invocation.
+- Added `api/cli.py` thin wrapper (argparse + uvicorn.run) for simplified dev ergonomics.
+- Confirmed editable reinstall registers script (`pip install -e .`) and CLI help output works.
+- Decision: keep `receipt_version=1` (additive, backward-compatible optional fields) – will bump only upon removal/renaming or semantic change of existing keys.
+- All Plan A tasks complete; total tests increased (schema + uplift) with entire suite passing (includes new validations). No production behavior regressions observed.
+- Ready for next roadmap phase (e.g., Prometheus export of new metrics, benchmark harness, or privacy/rate limiting features) pending prioritization.
+
+## 2025-10-05 (Normalization Phase 0 – Flag & Dual Attribution)
+- Added temporary `docs/NORMALIZATION_PLAN.md` detailing migration to normalized coherence attribution, ΔH trace identity, and conditioning diagnostics with phased rollout (flag → observe → version bump → cleanup).
+- Introduced feature flag `USE_NORMALIZED_COH` (default false) in `infra.settings` to guard normalized attribution path.
+- Refactored `engine.energy.per_node_components` to support dual computation: legacy asymmetric directed-edge attribution (0.5 / 0.25 split) and new symmetric normalized edge half-splitting aggregated via undirected edge grouping; returns extra reference components for relative diff diagnostics.
+- Updated `/query` pipeline (`api.main`) to invoke `per_node_components` with `normalized=flag` and compute: `coherence_mode` (`legacy|normalized`), `deltaH_rel_diff` (relative difference between legacy and normalized totals, Phase 0 telemetry), and placeholder `deltaH_trace` (currently equal to `coh_drop_total`; real quadratic form identity to follow).
+- Extended `Diagnostics` schema with new optional fields: `deltaH_trace`, `deltaH_rel_diff`, `kappa_bound`, `coherence_mode` (additive + backward-compatible).
+- Ensured legacy behavior and surface values unchanged when flag off; all prior tests remain green (30 passed after additions).
+- Next (Phase 0 continuation): implement true trace-form ΔH identity and low-cost spectral condition number bound (`kappa_bound`) before enabling normalized attribution in internal environments.
+
+## 2025-10-05 (Normalization Phase 0 – ΔH Identity & Diagnostics Expansion)
+- Implemented exact quadratic-form ΔH trace identity in `/query` handler: decomposition into ground (‖Q−X‖²), Laplacian (Tr(Q^T L Q)), and anchor (Σ b_i ‖q_i−y‖²) deltas; exposed as `deltaH_trace` with numerical non-negativity guard (fallback to `coh_drop_total` on anomaly).
+- Added spectral conditioning upper bound `kappa_bound` via 3-step power iteration estimating λ_max of M = λ_g I + λ_c L + λ_q B with conservative λ_min = λ_g.
+- Extended Phase 0 telemetry computing `deltaH_rel_diff` between active coherence attribution mode and reference path (legacy vs normalized) to quantify migration impact.
+- Added new tests `tests/test_normalization_diagnostics.py` covering presence, non-negativity, proportionality of `deltaH_trace`, kappa bound sanity (≥1), and coherence_mode reporting under both flag states.
+- Populated normalization diagnostics (`coherence_mode`, `deltaH_trace`, etc.) in easy-gate early return path to satisfy test expectations and ensure consistent surface for downstream logging when solver is skipped.
+- Resolved failing normalization diagnostics tests (2 earlier failures) by adding `coherence_mode` to easy path diagnostics; full suite now 32 passing.
+- Work remaining for later Phases: enable flag by default (Phase 2), bump `receipt_version` to 2 removing legacy path, optional Prometheus metric for `kappa_bound`, potential anchor temperature τ exploration, and eventual removal of `deltaH_rel_diff` once migration complete.
+
+## 2025-10-05 (Normalization Phase 0 – Degree Normalization & Adoption Telemetry)
+- Implemented degree-normalized coherence attribution in `engine.energy.per_node_components` applying per-edge scaling via D^{-1/2} to ensure symmetric, mass-preserving energy allocation (eliminates residual bias from high-degree nodes present in legacy asymmetric path).
+- Fixed transient `IndentationError` introduced during refactor (restored test stability immediately after patch).
+- Added `coherence_fraction` diagnostic (coherence / total ΔH, clamped to [0,1]) to quantify share of improvement attributable to Laplacian smoothing vs anchor & ground components; exposed only when `deltaH_total > 0`.
+- Introduced Prometheus counter `conscious_coherence_mode_total{mode}` to track adoption mix (`legacy` vs `normalized`) under `USE_NORMALIZED_COH` feature flag.
+- Extended `/query` handler to compute `coherence_fraction` alongside existing ΔH trace identity (`deltaH_trace`) and adoption telemetry (`deltaH_rel_diff`, `coherence_mode`).
+- Updated tests (`tests/test_normalization_diagnostics.py`) to assert presence & bounds of `coherence_fraction` and verify counter exposure for both modes (flag on/off); suite size increased to 35 passing tests.
+- Documentation updates:
+	- `docs/RECEIPTS.md`: Added `coherence_fraction` field, adoption counter metric, and v2 preview guidance for clients to begin consuming new fields.
+	- `docs/NORMALIZATION_PLAN.md`: Added attribution share telemetry row, adoption metric row, flip criteria (≥95% normalized queries, `deltaH_rel_diff < 1e-3`), alert thresholds for diff & fraction distribution shifts, and cleanup plan retaining `coherence_fraction` while removing `deltaH_rel_diff` post-migration.
+- Metrics & diagnostics now provide: (`deltaH_total`, `deltaH_trace`, `deltaH_rel_diff`, `coherence_fraction`, `kappa_bound`, `coherence_mode`).
+- Current status: Phase 0 observation complete with stable normalized attribution parity (no regressions observed); proceeding toward Phase 1 (internal default flip) pending 7-day stability window & distribution review.
+- Pending next steps:
+	1. Add optional Prometheus summary/histogram for `kappa_bound` (defer until variance assessed).
+	2. Capture anchor & ground fractions (either explicit fields or derivable via exposing all three components) if deeper energy audit proves necessary.
+	3. Initiate staged rollout experiment (shadow / dual run) to gather production distribution deltas prior to flipping default.
+	4. Flip `USE_NORMALIZED_COH` default to true (Phase 1) once adoption criteria met; begin deprecating legacy path.
+	5. Phase 2: Bump `receipt_version` to 2, remove legacy attribution branch & `deltaH_rel_diff`; retain `coherence_fraction` and `deltaH_trace` as canonical energy diagnostics.
+	6. Post-migration cleanup & doc prune: excise legacy references from `RECEIPTS.md` and collapse normalization plan into changelog.
+
+## 2025-10-05 (Tooling – Mypy Introduction & Type Hygiene)
+- Introduced mypy configuration in `pyproject.toml` with exclusions (`build/`, `dist/`, `.venv/`) to eliminate duplicate shadowed module errors from build artifacts during CI.
+- Added `__init__.py` across top-level packages (`adaptive`, `api`, `connectors`, `embedders`, `engine`, `graph`, `infra`) to convert them into explicit packages and resolve initial duplicate module path complaints.
+- Added `_SupportsEncode` Protocol to type the `sentence_transformers` model interface (only `encode` needed) avoiding reliance on third-party stubs; refactored `SentenceTransformerEmbedder` to remove unreachable branch warning and ensure deterministic ndarray return type.
+- Hardened solver & energy modules: ensured functions `jacobi_precond_diag`, `apply_M`, and per-node energy attribution return concrete `np.ndarray` (removed implicit Any propagation) via `np.asarray` casting.
+- Adjusted logging exception guard to remove unnecessary ignore; clarified `EXPECTED_DIM` parsing logic in settings and annotated internal variable for readability.
+- Cleaned memory connector and graph utilities with explicit ndarray casts, eliminating `no-any-return` diagnostics.
+- Final mypy run: 56 files analyzed, 0 issues (configuration intentionally permissive—strictness can be ratcheted later). Left advanced flags (`disallow_untyped_defs`, etc.) disabled to allow incremental adoption without blocking feature velocity.
+- Next optional tooling steps (deferred): introduce incremental strictness per package, add mypy caching in CI, evaluate stub generation for connector SDKs, and integrate a coverage report for typed functions.

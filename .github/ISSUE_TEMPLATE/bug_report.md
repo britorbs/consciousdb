@@ -9,10 +9,10 @@ A clear and concise description of what the bug is.
 
 ## Reproduction
 Steps to reproduce the behavior:
-1. 
-2. 
-3. 
-4. 
+1.
+2.
+3.
+4.
 
 ## Expected behavior
 A clear and concise description of what you expected to happen.
@@ -24,11 +24,11 @@ Paste traceback, error messages, or relevant log excerpts (redact secrets):
 ```
 
 ## Environment
-- Version / commit: 
-- Python version: 
-- OS: 
-- Deployment mode (local, Docker, Cloud Run, etc.): 
-- Optional extras used (connectors/embedders): 
+- Version / commit:
+- Python version:
+- OS:
+- Deployment mode (local, Docker, Cloud Run, etc.):
+- Optional extras used (connectors/embedders):
 
 ## Additional context
 Add any other context, metrics URL scrapes, or receipts that help diagnose.

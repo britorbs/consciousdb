@@ -50,18 +50,18 @@ Runbook for metrics, logging fields, SLO guardrails, and audit integrity.
 | Redundancy | Monitor | If high with low uplift, enable conditional MMR or tune threshold |
 
 ## Incident Triage Checklist
-1. Confirm latency spike vs baseline metrics (graph_build vs solve vs rank).  
-2. Check fallback reasons distribution – spikes in `residual` or `iters_cap`?  
-3. Inspect adaptive state size & suggested_alpha drift (gauge stability).  
-4. Tail recent audit log lines (`audit.log`) for unusual deltaH_total collapse.  
-5. Validate connector health (ANN returning empty / fewer than expected?).  
+1. Confirm latency spike vs baseline metrics (graph_build vs solve vs rank).
+2. Check fallback reasons distribution – spikes in `residual` or `iters_cap`?
+3. Inspect adaptive state size & suggested_alpha drift (gauge stability).
+4. Tail recent audit log lines (`audit.log`) for unusual deltaH_total collapse.
+5. Validate connector health (ANN returning empty / fewer than expected?).
 
 ## Audit Log Integrity Verification
 If `AUDIT_HMAC_KEY` enabled:
-1. Read each JSON line; extract and temporarily remove `signature`.  
-2. Canonicalize remaining JSON with sorted keys.  
-3. Compute `hex = HMAC_SHA256(key, canonical_bytes)`.  
-4. Compare constant-time; flag mismatches.  
+1. Read each JSON line; extract and temporarily remove `signature`.
+2. Canonicalize remaining JSON with sorted keys.
+3. Compute `hex = HMAC_SHA256(key, canonical_bytes)`.
+4. Compare constant-time; flag mismatches.
 
 Pseudo-Python:
 ```python
@@ -89,18 +89,18 @@ with open("audit.log") as f:
 
 ## Playbooks
 ### High Residual Fallbacks Spike
-1. Confirm residual reasons in metrics.  
-2. Increase `ITERS_CAP` short-term (observability first).  
-3. Inspect graph degree distribution (is k lowered inadvertently?).  
-4. Consider lowering `EXPAND_WHEN_GAP_BELOW` to reduce context size.  
+1. Confirm residual reasons in metrics.
+2. Increase `ITERS_CAP` short-term (observability first).
+3. Inspect graph degree distribution (is k lowered inadvertently?).
+4. Consider lowering `EXPAND_WHEN_GAP_BELOW` to reduce context size.
 
 ### Sudden Uplift Drop (deltaH_total near zero)
-1. Validate connector returning fewer results (ANN issue).  
-2. Check if easy gate triggering excessively (gap metric).  
-3. Ensure adaptive suggested_alpha not pinned at 0 or 1 (bandit starvation).  
+1. Validate connector returning fewer results (ANN issue).
+2. Check if easy gate triggering excessively (gap metric).
+3. Ensure adaptive suggested_alpha not pinned at 0 or 1 (bandit starvation).
 
 ### Redundancy High Despite MMR Disabled
-1. Evaluate enabling conditional MMR (`ENABLE_MMR=true` or override).  
+1. Evaluate enabling conditional MMR (`ENABLE_MMR=true` or override).
 2. Increase k diversity via adjusting recall M or decreasing `ALPHA_DELTAH` if overscoring coherence.
 
 ## Related

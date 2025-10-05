@@ -35,7 +35,7 @@ This file enumerates missing or outdated documentation areas relative to current
 |------|-------|--------|
 | BUILD_PLAN.md | Historical planning; superseded by ROADMAP.md | Archive or fold salient deltas into ROADMAP.md |
 | NEXT_IMPROVEMENTS.md | Overlaps ROADMAP + pivot doc | Merge relevant items then delete |
-| ConsciousDB_Simulations_Phases_A-G.md | Replaced by SIMULATIONS.md | Remove legacy file after content migration | 
+| ConsciousDB_Simulations_Phases_A-G.md | Replaced by SIMULATIONS.md | Remove legacy file after content migration |
 | PRICING_MODEL.md | Removed per decision | Confirm absence |
 
 ## Proposed New Files

@@ -24,10 +24,10 @@ This document outlines the current security posture, threat model, and roadmap f
 
 ## Trust Boundaries
 
-1. Client / Sidecar boundary: authenticated via API key (header `x-api-key` by default).  
-2. Sidecar / Vector DB boundary: network egress to managed vector store (pgvector / Pinecone / etc.).  
-3. Sidecar / Persistent Logs boundary: local filesystem (container ephemeral or mounted volume).  
-4. Sidecar / Secret Source boundary: environment variables (recommended: inject via orchestration secret manager).  
+1. Client / Sidecar boundary: authenticated via API key (header `x-api-key` by default).
+2. Sidecar / Vector DB boundary: network egress to managed vector store (pgvector / Pinecone / etc.).
+3. Sidecar / Persistent Logs boundary: local filesystem (container ephemeral or mounted volume).
+4. Sidecar / Secret Source boundary: environment variables (recommended: inject via orchestration secret manager).
 
 ## Threat Model
 
@@ -75,10 +75,10 @@ This document outlines the current security posture, threat model, and roadmap f
 
 ## Audit Log Integrity Verification (Example)
 
-1. For each line, extract the `signature` field.  
-2. Recompute `hex = HMAC_SHA256(AUDIT_HMAC_KEY, canonical_json(line_without_signature))`.  
-3. Compare constant‑time; flag mismatches.  
-4. (Planned) Ship to remote verifier service for append‑only attestation.  
+1. For each line, extract the `signature` field.
+2. Recompute `hex = HMAC_SHA256(AUDIT_HMAC_KEY, canonical_json(line_without_signature))`.
+3. Compare constant‑time; flag mismatches.
+4. (Planned) Ship to remote verifier service for append‑only attestation.
 
 ## Operational Recommendations
 
