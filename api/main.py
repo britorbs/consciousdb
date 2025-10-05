@@ -55,6 +55,7 @@ from infra.metrics import (
     ADAPTIVE_STATE_LOAD_FAILURE,
     ADAPTIVE_STATE_SAVE_FAILURE,
     BANDIT_ARM_SELECT,
+    COHERENCE_MODE_COUNT,
     FALLBACK_REASON,
     observe_adaptive_feedback,
     observe_bandit_snapshot,
@@ -75,7 +76,14 @@ class RequestLoggerAdapter(logging.LoggerAdapter):
 
 
 LOG = _BASE_LOG  # default (startup etc.)
-SET = Settings()
+
+
+def _load_settings():
+    return Settings()
+
+
+SET = _load_settings()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -100,9 +108,7 @@ async def lifespan(app: FastAPI):
     if mismatch:
         if SET.fail_on_dim_mismatch:
             LOG.error("startup_dim_mismatch", extra=summary)
-            raise RuntimeError(
-                f"Embedding dimension mismatch (expected={expected}, got={dim})"
-            )
+            raise RuntimeError(f"Embedding dimension mismatch (expected={expected}, got={dim})")
         else:
             LOG.warning("startup_dim_mismatch_warn", extra=summary)
     else:
@@ -135,6 +141,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:  # pragma: no cover
             ADAPTIVE_STATE_SAVE_FAILURE.inc()
             LOG.warning("adaptive_state_save_failed", extra={"error": str(e)})
+
 
 app = FastAPI(title="ConsciousDB Sidecar", version="v2.0.0", lifespan=lifespan)
 
@@ -176,6 +183,7 @@ def _constant_time_equals(a: str, b: str) -> bool:
 
 ## startup validation moved to lifespan
 
+
 @app.get("/healthz")
 def healthz():
     return {
@@ -188,10 +196,11 @@ def healthz():
         "expected_dim": getattr(app.state, "expected_dim", None),
     }
 
+
 @app.post("/query", response_model=QueryResponse)
 def query(req: QueryRequest):
     t_start = time.perf_counter()
-    rlog = getattr(req, 'log', LOG)
+    rlog = getattr(req, "log", LOG)
     # Predeclare qid for later reassignment to avoid UnboundLocalError
     qid = None
 
@@ -218,7 +227,7 @@ def query(req: QueryRequest):
 
     # Easy-query gate (vector-only if high gap) unless force_fallback explicitly requests full pipeline
     sorted_sims = np.sort(sims)[::-1]
-    gap = float(sorted_sims[0] - sorted_sims[min(9, len(sorted_sims)-1)])
+    gap = float(sorted_sims[0] - sorted_sims[min(9, len(sorted_sims) - 1)])
     if (
         gap > req.overrides.similarity_gap_margin
         and not req.overrides.force_fallback  # allow tests / callers to force full path
@@ -232,7 +241,8 @@ def query(req: QueryRequest):
         bandit_alpha = None
         if SET.enable_bandit and SET.enable_adaptive:
             ADAPTIVE_STATE.bandit_enabled = True
-            bandit_alpha = bandit_select(qid)  # may be None first few queries if not enabled
+            if qid is not None:
+                bandit_alpha = bandit_select(qid)  # may be None first few queries if not enabled
             if bandit_alpha is not None:
                 BANDIT_ARM_SELECT.labels(alpha=str(bandit_alpha)).inc()
                 observe_bandit_snapshot(ADAPTIVE_STATE.bandit_arms)
@@ -244,20 +254,24 @@ def query(req: QueryRequest):
             applied_alpha = bandit_alpha
             alpha_source = "bandit"
         items = []
-        for i, (id_) in enumerate(ids[:req.k]):
-            items.append(Item(
-                id=id_,
-                score=float(sims[i]),
-                align=float(sims[i]),
-                activation=0.0,
-                neighbors=[],
-                energy_terms=EnergyTerms(
-                    coherence_drop=0.0,
-                    anchor_drop=0.0,
-                    ground_penalty=0.0
-                ),
-                excerpt=None
-            ))
+        for i, (id_) in enumerate(ids[: req.k]):
+            items.append(
+                Item(
+                    id=id_,
+                    score=float(sims[i]),
+                    align=float(sims[i]),
+                    baseline_align=float(sims[i]),
+                    uplift=0.0,
+                    activation=0.0,
+                    neighbors=[] if req.receipt_detail == 1 else [],
+                    energy_terms=EnergyTerms(
+                        coherence_drop=0.0 if req.receipt_detail == 1 else 0.0,
+                        anchor_drop=0.0 if req.receipt_detail == 1 else 0.0,
+                        ground_penalty=0.0 if req.receipt_detail == 1 else 0.0,
+                    ),
+                    excerpt=None,
+                )
+            )
         timings = {"embed": embed_ms, "ann": ann_ms, "build": 0.0, "solve": 0.0, "rank": 1.0}
         resp = QueryResponse(
             items=items,
@@ -265,6 +279,11 @@ def query(req: QueryRequest):
                 similarity_gap=gap,
                 coh_drop_total=0.0,
                 deltaH_total=0.0,
+                # Normalization diagnostics (easy path: zeroed)
+                coherence_mode="normalized" if SET.use_normalized_coh else "legacy",
+                deltaH_trace=0.0,
+                deltaH_rel_diff=None,
+                kappa_bound=None,
                 suggested_alpha=suggested,
                 applied_alpha=applied_alpha,
                 alpha_source=alpha_source,
@@ -318,12 +337,7 @@ def query(req: QueryRequest):
                     "query_id": qid,
                     "suggested_alpha": resp.diagnostics.suggested_alpha,
                     "items": [
-                        {
-                            "id": it.id,
-                            "score": it.score,
-                            "coherence_drop": 0.0,
-                            "neighbors": []
-                        } for it in resp.items
+                        {"id": it.id, "score": it.score, "coherence_drop": 0.0, "neighbors": []} for it in resp.items
                     ],
                 }
                 # Optional HMAC signing
@@ -351,17 +365,20 @@ def query(req: QueryRequest):
             pass
         return resp
 
+    # (Removed settings refresh to preserve runtime test overrides on SET)
     # Build kNN adjacency over recalled vectors
     build_t0 = time.perf_counter()
     N, d = X_S.shape
     A_S = knn_adjacency(X_S, k=SET.knn_k, mutual=SET.knn_mutual)
+    # Raw (unnormalized) degrees for true degree-normalized coherence attribution
+    deg_full = np.asarray(A_S.sum(axis=1)).ravel().astype(np.float64)
     # Conditional 1-hop expansion for context
     used_expand = False
     S_idx = np.arange(N, dtype=int)
     if gap < req.overrides.expand_when_gap_below and N >= 400:
         used_expand = True
         # Mock expand: add a few neighbors (here trivially add ends); in production, use a persisted kNN adjacency.
-        S_ctx = np.arange(min(int(1.5*N), N), dtype=int)
+        S_ctx = np.arange(min(int(1.5 * N), N), dtype=int)
     else:
         S_ctx = S_idx
     # Restrict vectors to context
@@ -377,14 +394,28 @@ def query(req: QueryRequest):
     solve_t0 = time.perf_counter()
     L_ctx = normalized_laplacian(A_S[np.ix_(S_ctx, S_ctx)])
     Q_star, iters_vec, resid = solve_block_cg(
-        L=L_ctx, B_diag=b, X=X_ctx, y=y,
-        lambda_g=1.0, lambda_c=0.5, lambda_q=4.0,
-        iters_cap=req.overrides.iters_cap, residual_tol=req.overrides.residual_tol, warm_start=X_ctx
+        L=L_ctx,
+        B_diag=b,
+        X=X_ctx,
+        y=y,
+        lambda_g=1.0,
+        lambda_c=0.5,
+        lambda_q=4.0,
+        iters_cap=req.overrides.iters_cap,
+        residual_tol=req.overrides.residual_tol,
+        warm_start=X_ctx,
     )
     Q_base, _, _ = solve_block_cg(
-        L=L_ctx, B_diag=np.zeros_like(b), X=X_ctx, y=y,
-        lambda_g=1.0, lambda_c=0.5, lambda_q=0.0,
-        iters_cap=req.overrides.iters_cap, residual_tol=req.overrides.residual_tol, warm_start=X_ctx
+        L=L_ctx,
+        B_diag=np.zeros_like(b),
+        X=X_ctx,
+        y=y,
+        lambda_g=1.0,
+        lambda_c=0.5,
+        lambda_q=0.0,
+        iters_cap=req.overrides.iters_cap,
+        residual_tol=req.overrides.residual_tol,
+        warm_start=X_ctx,
     )
     # Restrict back to S
     pos = {idx: i for i, idx in enumerate(S_ctx)}
@@ -393,11 +424,80 @@ def query(req: QueryRequest):
     Qb = Q_base[idx_S]
     # Components on S
     L_S = normalized_laplacian(A_S[np.ix_(S_idx, S_idx)])
-    coh_b, anc_b, grd_b = per_node_components(Qb, X_S, L_S, np.zeros(N, dtype=np.float32), y, 1.0, 0.5, 0.0)
-    coh_s, anc_s, grd_s = per_node_components(Qs, X_S, L_S, b[:N], y, 1.0, 0.5, 4.0)
-    coh_drop = coh_b - coh_s
+    # Feature-flagged normalized coherence attribution
+    coh_b, anc_b, grd_b, extra_b = per_node_components(
+        Qb,
+        X_S,
+        L_S,
+        np.zeros(N, dtype=np.float32),
+        y,
+        1.0,
+        0.5,
+        0.0,
+        normalized=SET.use_normalized_coh,
+        deg=deg_full[idx_S],
+    )
+    coh_s, anc_s, grd_s, extra_s = per_node_components(
+        Qs,
+        X_S,
+        L_S,
+        b[:N],
+        y,
+        1.0,
+        0.5,
+        4.0,
+        normalized=SET.use_normalized_coh,
+        deg=deg_full[idx_S],
+    )
+    coh_drop = coh_b - coh_s  # per-node weighted coherence improvement
     coh_drop_total = float(np.sum(coh_drop))
+    coherence_mode = "normalized" if SET.use_normalized_coh else "legacy"
+    # Optionally compute reference difference between legacy and normalized totals for diagnostics (Phase 0 collection)
+    deltaH_rel_diff = None
+    if extra_b.get("coh_norm") is not None and extra_s.get("coh_norm") is not None and not SET.use_normalized_coh:
+        # Compare totals if normalized reference available
+        legacy_total = coh_drop_total
+        norm_total = float(np.sum(extra_b["coh_norm"]) - np.sum(extra_s["coh_norm"]))
+        denom = abs(legacy_total) + 1e-12
+        deltaH_rel_diff = abs(norm_total - legacy_total) / denom
+    elif extra_b.get("coh_legacy") is not None and extra_s.get("coh_legacy") is not None and SET.use_normalized_coh:
+        # Symmetric case when normalized is active; compare back to legacy reference
+        norm_total = coh_drop_total
+        legacy_total = float(np.sum(extra_b["coh_legacy"]) - np.sum(extra_s["coh_legacy"]))
+        denom = abs(norm_total) + 1e-12
+        deltaH_rel_diff = abs(norm_total - legacy_total) / denom
     solve_ms = (time.perf_counter() - solve_t0) * 1000.0
+
+    # Graph connected components (on S adjacency)
+    try:
+        # Simple BFS over non-zero edges
+        visited = set()
+        comp_sizes = []
+        for node in range(N):
+            if node in visited:
+                continue
+            stack = [node]
+            size = 0
+            while stack:
+                cur = stack.pop()
+                if cur in visited:
+                    continue
+                visited.add(cur)
+                size += 1
+                row = A_S[cur]
+                # neighbors where weight > 0
+                neigh_idx = np.where(row > 0)[0]
+                for nb in neigh_idx:
+                    if nb not in visited:
+                        stack.append(int(nb))
+            comp_sizes.append(size)
+        component_count = len(comp_sizes)
+        largest_component_ratio = max(comp_sizes) / N if comp_sizes and N > 0 else None
+    except Exception:  # pragma: no cover
+        component_count = None
+        largest_component_ratio = None
+
+    solver_efficiency = (coh_drop_total / solve_ms) if solve_ms > 1e-9 else None
 
     # Low-impact gate on coherence drop
     used_deltaH = True
@@ -440,15 +540,17 @@ def query(req: QueryRequest):
         applied_alpha = bandit_alpha
         alpha_source = "bandit"
 
+    # Baseline alignment before coherence optimization uplift measurement
+    baseline_align_full = sims  # raw similarity as baseline surrogate
     if not used_deltaH or fallback:
-        align_smooth = sims  # reuse naming
-        score_vec = sims
-        base_order = np.argsort(-score_vec)[:req.k]
+        align_smooth = baseline_align_full  # reuse naming
+        score_vec = baseline_align_full
+        base_order = np.argsort(-score_vec)[: req.k]
     else:
         z = zscore(coh_drop)
         align_smooth = (Qs @ y) / (np.linalg.norm(Qs, axis=1) + 1e-12)
         score_vec = applied_alpha * z + (1.0 - applied_alpha) * align_smooth
-        base_order = np.argsort(-score_vec)[:req.k]
+        base_order = np.argsort(-score_vec)[: req.k]
     if base_order.size > 1:
         sel = Qs[base_order]
         norms_sel = np.linalg.norm(sel, axis=1, keepdims=True) + 1e-12
@@ -457,12 +559,9 @@ def query(req: QueryRequest):
         n = S.shape[0]
         redundancy = float((S.sum() - n) / (n * (n - 1))) if n > 1 else 0.0
     # Conditional MMR gating
-    if (
-        req.k > 8
-        and redundancy > SET.redundancy_threshold
-        and (SET.enable_mmr or req.overrides.use_mmr)
-    ):
+    if req.k > 8 and redundancy > SET.redundancy_threshold and (SET.enable_mmr or req.overrides.use_mmr):
         from engine.rank import mmr as mmr_fn
+
         mmr_ids = base_order.tolist()
         rel_scores = score_vec[base_order]
         mmr_sel = mmr_fn(mmr_ids, Qs, rel_scores, lambda_mmr=SET.mmr_lambda, k=req.k)
@@ -479,6 +578,7 @@ def query(req: QueryRequest):
     items = []
     # Convert adjacency to dense row slices only for selected rows for simplicity (A_S is small ~M)
     # We take the top 5 neighbors by weight excluding self.
+    uplifts = []
     for r_idx in order:
         row = A_S[int(r_idx)]
         # row is dense ndarray (since knn_adjacency returns dense); ensure self excluded
@@ -492,22 +592,32 @@ def query(req: QueryRequest):
                 w = float(row[j])
                 if w <= 0:
                     break
-                neigh_weights.append(Neighbor(id=ids[int(j)], w=w))
-                if len(neigh_weights) >= 5:
-                    break
-        items.append(Item(
-            id=ids[int(r_idx)],
-            score=float(score_out[np.where(order==r_idx)][0]),
-            align=float(align_out[np.where(order==r_idx)][0]),
-            activation=float(act[np.where(order==r_idx)][0]),
-            neighbors=neigh_weights,
-            energy_terms=EnergyTerms(
-                coherence_drop=float(coh_drop[r_idx]),
-                anchor_drop=float(0.0 - anc_s[r_idx]),
-                ground_penalty=float(-(grd_b[r_idx] - grd_s[r_idx])),
-            ),
-            excerpt=None
-        ))
+                if req.receipt_detail == 1:
+                    neigh_weights.append(Neighbor(id=ids[int(j)], w=w))
+                    if len(neigh_weights) >= 5:
+                        break
+        baseline_align_val = float(baseline_align_full[r_idx])
+        uplift_val = float(align_smooth[np.where(order == r_idx)][0] - baseline_align_val)
+        uplifts.append(uplift_val)
+        if req.receipt_detail == 0:
+            neigh_weights = []  # enforce empty neighbors
+        items.append(
+            Item(
+                id=ids[int(r_idx)],
+                score=float(score_out[np.where(order == r_idx)][0]),
+                align=float(align_out[np.where(order == r_idx)][0]),
+                baseline_align=baseline_align_val,
+                uplift=uplift_val,
+                activation=float(act[np.where(order == r_idx)][0]),
+                neighbors=neigh_weights,
+                energy_terms=EnergyTerms(
+                    coherence_drop=float(coh_drop[r_idx]) if req.receipt_detail == 1 else 0.0,
+                    anchor_drop=float(0.0 - anc_s[r_idx]) if req.receipt_detail == 1 else 0.0,
+                    ground_penalty=float(-(grd_b[r_idx] - grd_s[r_idx])) if req.receipt_detail == 1 else 0.0,
+                ),
+                excerpt=None,
+            )
+        )
 
     edge_count = int(np.count_nonzero(A_S))
     avg_degree = float(edge_count / N) if N > 0 else 0.0
@@ -527,13 +637,75 @@ def query(req: QueryRequest):
 
     qid = qid or (str(uuid.uuid4()) if SET.enable_adaptive else None)
     if SET.enable_adaptive:
-        cache_query(qid, coh_drop_total, redundancy)
+        if qid is not None:
+            cache_query(qid, coh_drop_total, redundancy)
+    uplift_avg = float(np.mean(uplifts)) if uplifts else None
+    # Exact ΔH trace identity:
+    # ΔH = H(Q_base) - H(Q_star) = λ_g(||Qb-X||^2_F - ||Qs-X||^2_F) + λ_c(Tr(Qb^T L Qb) - Tr(Qs^T L Qs))
+    #       + λ_q(Σ b_i ||Qb_i - y||^2 - Σ b_i ||Qs_i - y||^2)
+    try:
+        lambda_g = 1.0
+        lambda_c = 0.5
+        lambda_q = 4.0
+        # Ground delta
+        ground_delta = np.sum((Qb - X_S) ** 2) - np.sum((Qs - X_S) ** 2)
+        # Laplacian delta (use normalized Laplacian L_S)
+        # Tr(Q^T L Q) = Σ_k q_k^T (L q_k) across embedding dims; implement via matrix multiply once.
+        L_Qb = L_S @ Qb
+        L_Qs = L_S @ Qs
+        lap_delta = float(np.sum(Qb * L_Qb) - np.sum(Qs * L_Qs))
+        # Anchor delta (baseline solve used lambda_q=0 so baseline anchor contribution is identically 0)
+        diff_s = Qs - y[None, :]
+        anchor_delta = float(-np.sum(b[:N] * np.sum(diff_s * diff_s, axis=1)))
+        deltaH_trace = lambda_g * ground_delta + lambda_c * lap_delta + lambda_q * anchor_delta
+        # Numerical guard: ΔH should be non-negative (allow tiny negative due to FP)
+        if deltaH_trace < -1e-8:
+            # Fallback to coherence drop if anomaly
+            deltaH_trace = coh_drop_total
+    except Exception:
+        deltaH_trace = coh_drop_total
+    # κ(M) bound estimation: M = λ_g I + λ_c L + λ_q B ; λ_min ≥ λ_g (PSD terms added)
+    try:
+        # Power iteration to estimate largest eigenvalue of (λ_g I + λ_c L + λ_q diag(b))
+        L_mat = L_S  # normalized Laplacian over S
+        diag_b = b[:N]
+
+        def mv(v: np.ndarray) -> np.ndarray:
+            out = lambda_g * v + lambda_c * (L_mat @ v) + lambda_q * (diag_b * v)
+            return np.asarray(out, dtype=v.dtype)
+
+        v = np.random.default_rng().standard_normal(N)
+        v /= np.linalg.norm(v) + 1e-12
+        lam_max = lambda_g
+        for _ in range(3):  # few iters sufficient for loose bound
+            wv = mv(v)
+            nrm = np.linalg.norm(wv) + 1e-12
+            v = wv / nrm
+            lam_max = float(np.dot(v, mv(v)) / (np.dot(v, v) + 1e-12))
+        lam_min = lambda_g  # conservative lower bound
+        kappa_bound = float(lam_max / max(lam_min, 1e-12))
+    except Exception:
+        kappa_bound = None
+    # Coherence fraction relative to trace (if available) or deltaH_total
+    coherence_fraction = None
+    if coh_drop_total > 1e-9:
+        denom = deltaH_trace if (deltaH_trace is not None and deltaH_trace > 1e-9) else coh_drop_total
+        coherence_fraction = float(min(1.0, max(0.0, coh_drop_total / (denom + 1e-12))))
     resp = QueryResponse(
         items=items,
         diagnostics=Diagnostics(
             similarity_gap=gap,
             coh_drop_total=coh_drop_total,
             deltaH_total=coh_drop_total,
+            coherence_mode=coherence_mode,
+            deltaH_rel_diff=deltaH_rel_diff,
+            deltaH_trace=deltaH_trace,
+            kappa_bound=kappa_bound,
+            coherence_fraction=coherence_fraction,
+            component_count=component_count,
+            largest_component_ratio=largest_component_ratio,
+            solver_efficiency=solver_efficiency,
+            uplift_avg=uplift_avg,
             suggested_alpha=suggested,
             applied_alpha=applied_alpha,
             alpha_source=alpha_source,
@@ -577,6 +749,7 @@ def query(req: QueryRequest):
             low_impact_gate=not used_deltaH,
             neighbors_present=any(len(it.neighbors) > 0 for it in items),
         )
+        COHERENCE_MODE_COUNT.labels(mode=coherence_mode).inc()
     except Exception as e:  # pragma: no cover
         LOG.warning("metrics_observe_failed", extra={"error": str(e)})
     rlog.info(
@@ -655,10 +828,12 @@ def query(req: QueryRequest):
         pass
     return resp
 
+
 @app.get("/metrics")
 def metrics():  # pragma: no cover - simple exposition
     data = generate_latest()  # default registry
     return JSONResponse(content=data.decode("utf-8"), media_type=CONTENT_TYPE_LATEST)
+
 
 @app.post("/feedback")
 def feedback(req: FeedbackRequest):

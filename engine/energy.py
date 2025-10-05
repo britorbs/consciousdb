@@ -71,10 +71,8 @@ def per_node_components(
 
     # Normalized symmetric attribution (each *undirected* edge contributes 0.5 * w * ||Qi/√di - Qj/√dj||^2 to both ends)
     # Implements degree-normalized differences aligned with L_sym = I - D^{-1/2} A D^{-1/2}.
-    # NOTE: We prefer true degrees from the *unnormalized* adjacency A. Since only L (or Ahat) is
-    # available here, callers should supply `deg` computed as A.sum(axis=1). If `deg` is None we
-    # fall back to using row sums of Ahat (which is mathematically inconsistent but retained as a
-    # backward-compatible fallback until all call sites pass real degrees).
+    # Callers now supply true degrees (deg) from the unnormalized adjacency; fallback to Ahat row sums
+    # is retained only for legacy invocation paths (should be phased out).
     coh_norm: np.ndarray | None = None
     if len(w) > 0:
         # Undirected grouping key
