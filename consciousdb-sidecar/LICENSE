@@ -1,0 +1,48 @@
+Business Source License 1.1
+
+Licensor: ConsciousDB, Inc.
+
+Licensed Work: ConsciousDB Sidecar (the "Licensed Work").
+The Licensed Work is the source code present in this repository at
+https://github.com/your-org/consciousdb-sidecar
+
+Additional Use Grant: You may make non-production, evaluation, internal,
+research, or non-commercial use of the Licensed Work at no cost.
+
+Change Date: 2028-10-05
+
+Change License: On the Change Date, the License for the Licensed Work will
+convert to the Apache License, Version 2.0.
+
+Permitted Use: Prior to the Change Date, you may copy, modify, create
+derivative works, and redistribute the Licensed Work (with attribution and
+preserving this license), solely for the Additional Use Grant purposes.
+
+Production Use: Any production deployment, SaaS offering, or use of the
+Licensed Work (or substantial portions) to provide a commercial service prior
+to the Change Date requires a separate commercial license from the Licensor.
+
+Payments: No fees are required for the Additional Use Grant.
+
+Trademarks: This license does not grant permission to use the trade names,
+trademarks, service marks, or product names of the Licensor.
+
+Termination: If you violate the terms of this license, your rights will be
+automatically terminated. Upon termination, you must cease all use and destroy
+copies of the Licensed Work in your possession.
+
+Disclaimer: THE LICENSED WORK IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, TITLE AND
+NONINFRINGEMENT. IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM,
+DAMAGES, OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR
+OTHERWISE, ARISING FROM, OUT OF, OR IN CONNECTION WITH THE LICENSED WORK OR
+THE USE OR OTHER DEALINGS IN THE LICENSED WORK.
+
+Limitation: To the extent allowed by applicable law, the total liability of
+the Licensor for any claims under this license is limited to $100.
+
+Notice: Any copy or redistribution of the Licensed Work must include this
+license text.
+
+For commercial licensing, contact: licensing@consciousdb.ai

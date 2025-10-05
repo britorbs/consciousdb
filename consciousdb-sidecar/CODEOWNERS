@@ -1,0 +1,13 @@
+# CODEOWNERS governs default reviewers & ownership.
+# Format: pattern  owners
+# Wildcards per gitignore syntax.
+
+*       @your-org/platform-team
+api/*   @your-org/retrieval
+engine/* @your-org/research
+connectors/* @your-org/integrations
+embedders/* @your-org/integrations
+
+# Docs and repo meta
+README.md @your-org/docs
+CHANGELOG.md @your-org/platform-team

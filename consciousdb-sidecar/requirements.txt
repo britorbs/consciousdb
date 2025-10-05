@@ -1,0 +1,11 @@
+## Dependency Source of Truth
+# This project uses PEP 621 metadata in pyproject.toml for all dependencies.
+# To install core + dev tools:
+#   pip install -e .[dev]
+# To include connectors / embedders:
+#   pip install -e .[dev,connectors-pgvector,embedders-sentencetransformers]
+# (select the extras you need; see [project.optional-dependencies])
+
+# This file intentionally does not duplicate pinned versions to avoid drift.
+
+--editable .

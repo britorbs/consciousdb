@@ -1,0 +1,54 @@
+## Python caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+## Virtual environments & env files
+.venv/
+venv/
+.env
+*.env
+.env.*
+
+## Build & distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+
+## Logs & runtime exports
+logs/
+*.log
+receipts_export.jsonl
+
+## Test / coverage / tooling caches
+.cache/
+.pytest_cache/
+htmlcov/
+.coverage*
+coverage.xml
+.mypy_cache/
+.ruff_cache/
+
+## IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+## Data / local artifacts
+data/
+adaptive_state.json
+
+## Jupyter
+.ipynb_checkpoints/
+
+## Temporary files
+*.tmp
+*.swp
+*.bak
+
+## Node (future examples)
+node_modules/
+
+## Docker archives
+*.tar
