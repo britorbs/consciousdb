@@ -31,12 +31,8 @@ REDUNDANCY = Histogram(
     "Average pairwise cosine redundancy of preliminary top-k",
     buckets=(0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
 )
-MMR_APPLIED = Counter(
-    "conscious_mmr_applied_total", "Count of queries where MMR diversification executed"
-)
-QUERY_COUNT = Counter(
-    "conscious_query_total", "Total query requests processed", ["fallback", "easy_gate", "coh_gate"]
-)
+MMR_APPLIED = Counter("conscious_mmr_applied_total", "Count of queries where MMR diversification executed")
+QUERY_COUNT = Counter("conscious_query_total", "Total query requests processed", ["fallback", "easy_gate", "coh_gate"])
 
 # New pivot metrics
 DELTAH_TOTAL = Histogram(
@@ -59,9 +55,21 @@ RECEIPT_COMPLETENESS = Gauge(
     "Fraction of optional receipt fields present (deltaH_total, neighbors, redundancy)",
 )
 
-MAX_RESIDUAL = Gauge(
-    "conscious_solver_max_residual", "Max relative residual observed for last query"
+# Normalization adoption counter
+COHERENCE_MODE_COUNT = Counter(
+    "conscious_coherence_mode_total",
+    "Count of queries by coherence attribution mode",
+    ["mode"],
 )
+
+# Phase 1 normalization monitoring: deltaH relative difference distribution
+DELTAH_REL_DIFF = Histogram(
+    "conscious_deltaH_rel_diff",
+    "Relative difference between trace forms (full vs top-k) or between legacy and normalized during migration",
+    buckets=(1e-6, 1e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2),
+)
+
+MAX_RESIDUAL = Gauge("conscious_solver_max_residual", "Max relative residual observed for last query")
 
 # Adaptive metrics
 ADAPTIVE_FEEDBACK = Counter(
@@ -99,6 +107,7 @@ ADAPTIVE_STATE_SAVE_FAILURE = Counter(
     "conscious_adaptive_state_save_failure_total",
     "Count of failures when saving adaptive state to disk",
 )
+
 
 def observe_bandit_snapshot(arms):
     for arm in arms:

@@ -56,6 +56,7 @@ from infra.metrics import (
     ADAPTIVE_STATE_SAVE_FAILURE,
     BANDIT_ARM_SELECT,
     COHERENCE_MODE_COUNT,
+    DELTAH_REL_DIFF,
     FALLBACK_REASON,
     observe_adaptive_feedback,
     observe_bandit_snapshot,
@@ -650,16 +651,40 @@ def query(req: QueryRequest):
         if qid is not None:
             cache_query(qid, coh_drop_total, redundancy)
     uplift_avg = float(np.mean(uplifts)) if uplifts else None
-    # Exact ΔH trace identity:
-    # ΔH = H(Q_base) - H(Q_star) = λ_g(||Qb-X||^2_F - ||Qs-X||^2_F) + λ_c(Tr(Qb^T L Qb) - Tr(Qs^T L Qs))
-    #       + λ_q(Σ b_i ||Qb_i - y||^2 - Σ b_i ||Qs_i - y||^2)
-    # Top-k conservation identity: sum over returned items of (coh + anchor + ground improvements)
+    # Full-scope quadratic trace identity (candidate set S) and top-k component sum.
     try:
-        deltaH_trace = float(np.sum(coh_drop[order] + anc_drop[order] + grd_drop[order]))
-        if deltaH_trace < -1e-8:
-            deltaH_trace = coh_drop_total
+        # Full trace components
+        ground_delta_full = float(np.sum((Qb - X_S) ** 2) - np.sum((Qs - X_S) ** 2))
+        L_Qb_full = L_S @ Qb
+        L_Qs_full = L_S @ Qs
+        lap_delta_full = float(np.sum(Qb * L_Qb_full) - np.sum(Qs * L_Qs_full))
+        diff_b_full = Qb - y[None, :]
+        diff_s_full = Qs - y[None, :]
+        anchor_delta_full = float(
+            np.sum(b[:N] * np.sum(diff_b_full * diff_b_full, axis=1))
+            - np.sum(b[:N] * np.sum(diff_s_full * diff_s_full, axis=1))
+        )
+        deltaH_trace_full = (
+            lambda_g * ground_delta_full + lambda_c * lap_delta_full + lambda_q * anchor_delta_full
+        )
+        if deltaH_trace_full < -1e-8:
+            deltaH_trace_full = coh_drop_total
     except Exception:
-        deltaH_trace = coh_drop_total
+        deltaH_trace_full = coh_drop_total
+    # Top-k conservation component sum (already λ-scaled per-node improvements)
+    try:
+        deltaH_trace_topk = float(np.sum(coh_drop[order] + anc_drop[order] + grd_drop[order]))
+    except Exception:
+        deltaH_trace_topk = coh_drop_total
+    deltaH_trace = deltaH_trace_topk  # retain legacy field pointing to top-k for backward compatibility
+    # Relative difference (monitoring) between scopes when both meaningful
+    if deltaH_trace_full not in (None,) and abs(deltaH_trace_full) > 1e-12:
+        deltaH_rel_diff_scopes = abs(deltaH_trace_full - deltaH_trace_topk) / (abs(deltaH_trace_full) + 1e-12)
+        # If existing legacy vs normalized diff also present, prefer scope diff for Phase 1 monitoring
+        if deltaH_rel_diff is None:
+            deltaH_rel_diff = deltaH_rel_diff_scopes
+    else:
+        deltaH_rel_diff_scopes = None
     # κ(M) bound estimation: M = λ_g I + λ_c L + λ_q B ; λ_min ≥ λ_g (PSD terms added)
     try:
         # Power iteration to estimate largest eigenvalue of (λ_g I + λ_c L + λ_q diag(b))
@@ -696,6 +721,8 @@ def query(req: QueryRequest):
             coherence_mode=coherence_mode,
             deltaH_rel_diff=deltaH_rel_diff,
             deltaH_trace=deltaH_trace,
+            deltaH_trace_topk=deltaH_trace_topk,
+            deltaH_trace_full=deltaH_trace_full,
             kappa_bound=kappa_bound,
             coherence_fraction=coherence_fraction,
             component_count=component_count,
@@ -746,6 +773,11 @@ def query(req: QueryRequest):
             neighbors_present=any(len(it.neighbors) > 0 for it in items),
         )
         COHERENCE_MODE_COUNT.labels(mode=coherence_mode).inc()
+        if deltaH_rel_diff is not None:
+            try:
+                DELTAH_REL_DIFF.observe(deltaH_rel_diff)
+            except Exception:
+                pass
     except Exception as e:  # pragma: no cover
         LOG.warning("metrics_observe_failed", extra={"error": str(e)})
     rlog.info(
