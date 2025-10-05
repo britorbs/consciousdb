@@ -6,6 +6,15 @@ The format (for released versions) adheres to [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 ### Added
+### Changed
+### Fixed
+### Removed
+### Deprecated
+### Security
+### Performance
+
+## [0.1.0] - 2025-10-05
+### Added
 - Initial packaging metadata in `pyproject.toml` (PEP 621) with optional extras for connectors & embedders.
 - Contribution, Code of Conduct, and Security policies (`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `SECURITY.md`).
 - Expanded README with "Database-as-Model" paradigm narrative and comparison table.
