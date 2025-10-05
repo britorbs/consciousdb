@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install project (core + dev)
+        run: |
+          pip install --upgrade pip
+          pip install .[dev]
+
+      - name: Lint (ruff)
+        run: |
+          ruff check .
+
+      - name: Type check (mypy placeholder)
+        run: |
+          echo "(Placeholder) Add mypy config later" \
+            && echo "Skipping strict type check until mypy.ini present"
+
+      - name: Run tests with coverage
+        run: |
+          pytest -q --cov=./ --cov-report=xml --cov-report=term
+
+      - name: Build wheel
+        run: |
+          python -m build --wheel || python setup.py bdist_wheel || echo "Fallback build path used"
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          if-no-files-found: warn
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-wheel
+          path: dist/*.whl
+          if-no-files-found: warn

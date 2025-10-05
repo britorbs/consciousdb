@@ -1,0 +1,21 @@
+# Exclude unnecessary build context
+.git
+.gitignore
+Dockerfile
+ops/gh-actions.yml
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.pytest_cache
+.venv
+.env
+.env.*
+README.md
+LICENSE
+docs/
+tests/
+# Local logs & artifacts
+*.log
+coverage*
+htmlcov/
