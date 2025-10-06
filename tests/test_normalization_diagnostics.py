@@ -5,14 +5,20 @@ from fastapi.testclient import TestClient
 
 
 def build_app():
+    import infra.settings as settings_mod
     import api.main as main_mod  # local import for reloadability
+
+    importlib.reload(settings_mod)
     importlib.reload(main_mod)
     return main_mod.app
+
 
 def run_query(flag: bool):
     if flag:
         os.environ["USE_NORMALIZED_COH"] = "true"
+        os.environ.pop("FORCE_LEGACY_COH", None)
     else:
+        os.environ["FORCE_LEGACY_COH"] = "true"
         os.environ.pop("USE_NORMALIZED_COH", None)
     client = TestClient(build_app())
     body = {"query": "test", "k": 5, "m": 120, "overrides": {}}
@@ -31,7 +37,7 @@ def test_deltaH_trace_and_kappa_legacy():
         assert diag["deltaH_trace"] >= -1e-8
         # allow trace to be larger, ensure not wildly smaller
         assert diag["deltaH_trace"] >= 0.01 * diag["deltaH_total"]
-    # legacy mode when flag off
+    # legacy mode when escape hatch forced
     assert diag.get("coherence_mode") == "legacy"
     # kappa_bound present and >= 1 (or None if pathological small graph)
     if diag.get("kappa_bound") is not None:
@@ -63,13 +69,17 @@ def test_deltaH_trace_and_kappa_normalized():
 def test_metrics_exposes_coherence_mode_counter():
     # Execute two queries (legacy then normalized) and validate the new counter appears.
     import os
+
     from fastapi.testclient import TestClient
+
     os.environ.pop("USE_NORMALIZED_COH", None)
     from api.main import app as app1
+
     c1 = TestClient(app1)
     c1.post("/query", json={"query": "m1", "k": 4, "m": 120, "overrides": {"similarity_gap_margin": 10.0}})
     os.environ["USE_NORMALIZED_COH"] = "true"
     from api.main import app as app2  # same process registry reused
+
     c2 = TestClient(app2)
     c2.post("/query", json={"query": "m2", "k": 4, "m": 120, "overrides": {"similarity_gap_margin": 10.0}})
     metrics = c2.get("/metrics")
@@ -97,9 +107,9 @@ def test_energy_conservation():
     deltaH_trace = diag["deltaH_trace"]
     # Only assert tight conservation when trace is non-trivial
     if abs(deltaH_trace) > 1e-9:
-        assert abs(component_sum - deltaH_trace) < 1e-6, (
-            f"component_sum={component_sum} deltaH_trace={deltaH_trace} diff={component_sum - deltaH_trace}"
-        )
+        assert (
+            abs(component_sum - deltaH_trace) < 1e-6
+        ), f"component_sum={component_sum} deltaH_trace={deltaH_trace} diff={component_sum - deltaH_trace}"
     else:
         # Degenerate case: both should be near zero
         assert abs(component_sum) < 1e-6

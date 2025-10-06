@@ -5,7 +5,11 @@ from fastapi.testclient import TestClient
 
 
 def build_app():
+    # Reload settings first so that FORCE_LEGACY_COH / USE_NORMALIZED_COH changes take effect
+    import infra.settings as settings_mod
     import api.main as main_mod  # local import for reloadability
+
+    importlib.reload(settings_mod)
     importlib.reload(main_mod)
     return main_mod.app
 
@@ -13,7 +17,10 @@ def build_app():
 def run(flag: bool):
     if flag:
         os.environ["USE_NORMALIZED_COH"] = "true"
+        os.environ.pop("FORCE_LEGACY_COH", None)
     else:
+        # Force legacy via escape hatch now that normalization is default
+        os.environ["FORCE_LEGACY_COH"] = "true"
         os.environ.pop("USE_NORMALIZED_COH", None)
     client = TestClient(build_app())
     req = {
