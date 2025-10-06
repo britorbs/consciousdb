@@ -16,7 +16,6 @@ Synthetic loader creates a small random embedding-backed corpus for rapid smoke.
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple
 
 import numpy as np
 
@@ -36,17 +35,17 @@ class CorpusItem:
 @dataclass
 class QRel:
     query_id: str
-    relevant_ids: List[str]
+    relevant_ids: list[str]
 
 
 @dataclass
 class BenchmarkBatch:
     query: Query
-    gold: List[str]
+    gold: list[str]
 
 
-def load_jsonl(path: Path) -> List[dict]:
-    out: List[dict] = []
+def load_jsonl(path: Path) -> list[dict]:
+    out: list[dict] = []
     with path.open("r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -58,18 +57,18 @@ def load_jsonl(path: Path) -> List[dict]:
     return out
 
 
-def load_dataset(root: str) -> List[BenchmarkBatch]:
+def load_dataset(root: str) -> list[BenchmarkBatch]:
     root_path = Path(root)
     qrels = load_jsonl(root_path / "qrels.jsonl")
     queries = {r["id"]: Query(id=r["id"], text=r["text"]) for r in load_jsonl(root_path / "queries.jsonl")}
-    batches: List[BenchmarkBatch] = []
+    batches: list[BenchmarkBatch] = []
     for qr in qrels:
         qid = qr["query_id"]
         batches.append(BenchmarkBatch(query=queries[qid], gold=qr["relevant_ids"]))
     return batches
 
 
-def synthetic_dataset(n_queries: int = 25, dim: int = 32) -> Tuple[List[BenchmarkBatch], np.ndarray, List[str]]:
+def synthetic_dataset(n_queries: int = 25, dim: int = 32) -> tuple[list[BenchmarkBatch], np.ndarray, list[str]]:
     """Produce a synthetic dataset with a ground-truth vector for each query.
 
     For each query we mark top-3 nearest corpus vectors (by cosine) as relevant.
@@ -79,7 +78,7 @@ def synthetic_dataset(n_queries: int = 25, dim: int = 32) -> Tuple[List[Benchmar
     corpus = rng.normal(size=(corpus_size, dim)).astype(np.float32)
     corpus /= (np.linalg.norm(corpus, axis=1, keepdims=True) + 1e-12)
     ids = [f"doc:{i}" for i in range(corpus_size)]
-    batches: List[BenchmarkBatch] = []
+    batches: list[BenchmarkBatch] = []
     for qi in range(n_queries):
         qv = rng.normal(size=(dim,)).astype(np.float32)
         qv /= (np.linalg.norm(qv) + 1e-12)

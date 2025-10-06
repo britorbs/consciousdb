@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 """Benchmark runner comparing vanilla cosine vs ConsciousDB coherence ranking.
 
 Usage (synthetic quick run):
@@ -14,17 +15,16 @@ URL you pass via --api.
 import argparse
 import json
 import os
-import statistics
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Sequence
 
 import numpy as np
 import requests
 
-from .datasets import BenchmarkBatch, synthetic_dataset, load_dataset
-from .metrics import ndcg_at_k, mrr_at_k, aggregate_metric, percentile
+from .datasets import load_dataset, synthetic_dataset
+from .metrics import aggregate_metric, mrr_at_k, ndcg_at_k, percentile
 
 DEFAULT_API = os.getenv("CONSCIOUSDB_API", "http://localhost:8080")
 
@@ -32,10 +32,10 @@ DEFAULT_API = os.getenv("CONSCIOUSDB_API", "http://localhost:8080")
 @dataclass
 class MethodResult:
     name: str
-    ndcgs: List[float]
-    mrrs: List[float]
-    latencies_ms: List[float]
-    deltaH: List[float]
+    ndcgs: list[float]
+    mrrs: list[float]
+    latencies_ms: list[float]
+    deltaH: list[float]
 
     def summary(self, k: int) -> dict:
         return {
@@ -48,7 +48,7 @@ class MethodResult:
         }
 
 
-def cosine_search(corpus_vecs: np.ndarray, ids: Sequence[str], query_vec: np.ndarray, k: int, m: int) -> List[str]:
+def cosine_search(corpus_vecs: np.ndarray, ids: Sequence[str], query_vec: np.ndarray, k: int, m: int) -> list[str]:
     sims = corpus_vecs @ query_vec
     order = np.argsort(-sims)[:m]
     # Take top-k reranked (here same because no rerank logic)
@@ -156,7 +156,7 @@ def run(args: argparse.Namespace):
         Path(args.json).write_text(json.dumps(report, indent=2), encoding="utf-8")
     if args.output:
         lines = ["# Benchmark Results", "", f"Queries: {len(batches)}  |  k={args.k}  m={args.m}", ""]
-        header = "| Method | nDCG@{k} | MRR@{k} | P95 Lat (ms) | Avg ΔH | Explainability | nDCG Uplift % | MRR Uplift % |".format(k=args.k)
+        header = f"| Method | nDCG@{args.k} | MRR@{args.k} | P95 Lat (ms) | Avg ΔH | Explainability | nDCG Uplift % | MRR Uplift % |"
         lines.append(header)
         lines.append("|--------|---------|-------|-------------|--------|---------------|---------------|--------------|")
         for s in summaries:

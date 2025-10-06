@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Sequence
+from collections.abc import Sequence
 
 
 def dcg(relevances: Sequence[float]) -> float:
@@ -10,7 +10,7 @@ def dcg(relevances: Sequence[float]) -> float:
     return sum((rel / math.log2(i + 2)) for i, rel in enumerate(relevances))
 
 
-def ndcg_at_k(pred_ids: List[str], gold_ids: List[str], k: int) -> float:
+def ndcg_at_k(pred_ids: list[str], gold_ids: list[str], k: int) -> float:
     """Compute nDCG@k with binary relevance (1 if in gold)."""
     if k <= 0:
         return 0.0
@@ -20,7 +20,7 @@ def ndcg_at_k(pred_ids: List[str], gold_ids: List[str], k: int) -> float:
     return dcg(rels) / ideal_dcg
 
 
-def mrr_at_k(pred_ids: List[str], gold_ids: List[str], k: int) -> float:
+def mrr_at_k(pred_ids: list[str], gold_ids: list[str], k: int) -> float:
     """Compute MRR@k with binary relevance set gold_ids."""
     for i, pid in enumerate(pred_ids[:k]):
         if pid in gold_ids:
@@ -28,13 +28,13 @@ def mrr_at_k(pred_ids: List[str], gold_ids: List[str], k: int) -> float:
     return 0.0
 
 
-def aggregate_metric(values: List[float]) -> float:
+def aggregate_metric(values: list[float]) -> float:
     if not values:
         return 0.0
     return float(sum(values) / len(values))
 
 
-def percentile(values: List[float], pct: float) -> float:
+def percentile(values: list[float], pct: float) -> float:
     if not values:
         return 0.0
     import numpy as np

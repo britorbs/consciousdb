@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict
+from typing import Any
 
 import requests
 import streamlit as st
@@ -35,7 +35,7 @@ if col_reset.button("Reset Query"):
 run_clicked = col_run.button("Run Search", type="primary")
 
 if run_clicked and query.strip():
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "query": query.strip(),
         "k": int(k_val),
         "m": int(m_val),

@@ -1,4 +1,6 @@
-import os, json
+import json
+import os
+
 from fastapi.testclient import TestClient
 
 os.environ['USE_NORMALIZED_COH'] = 'true'

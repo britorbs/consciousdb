@@ -17,7 +17,6 @@ import json
 import os
 import random
 import statistics
-from typing import List
 
 # Set env flags BEFORE importing the FastAPI app so Settings picks them up once.
 os.environ.setdefault("USE_NORMALIZED_COH", "true")
@@ -29,7 +28,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from api.main import app  # noqa: E402
 
 
-def _percentile(arr: List[float], pct: float) -> float:
+def _percentile(arr: list[float], pct: float) -> float:
     if not arr:
         return 0.0
     return float(np.percentile(np.array(arr, dtype=float), pct))
@@ -56,9 +55,9 @@ def test_normalized_stability_load():  # pragma: no cover - long-running analyti
         "quantum computing applications",
     ]
 
-    rel_diffs: List[float] = []  # now scope diffs (full vs top-k)
-    coherence_fractions: List[float] = []
-    kappa_bounds: List[float] = []
+    rel_diffs: list[float] = []  # now scope diffs (full vs top-k)
+    coherence_fractions: list[float] = []
+    kappa_bounds: list[float] = []
     fallback_count = 0
 
     for i in range(N):
@@ -111,7 +110,7 @@ def test_normalized_stability_load():  # pragma: no cover - long-running analyti
 
     report = {
         "total_queries": N,
-    "deltaH_scope_diff": {
+        "deltaH_scope_diff": {
             "p50": p50,
             "p90": p90,
             "p95": p95,
@@ -144,7 +143,7 @@ def test_normalized_stability_load():  # pragma: no cover - long-running analyti
     strict = os.getenv("NORMALIZATION_LOAD_STRICT", "true").lower() in ("1", "true", "yes")
     if strict:
         # Only enforce operational fallback rate threshold now; scope diff is informational.
-    print(f"Scope difference P95: {p95:.3f} (expected ~0.3-0.4 for top-k vs full)")
+        print(f"Scope difference P95: {p95:.3f} (expected ~0.3-0.4 for top-k vs full)")
         assert fallback_rate < 0.05, f"Fallback rate {fallback_rate:.2%} >= 5% threshold"
 
     # Assert we gathered a reasonable number of samples. Some queries trigger the
@@ -155,7 +154,7 @@ def test_normalized_stability_load():  # pragma: no cover - long-running analyti
     min_fraction = float(os.getenv("NORMALIZATION_LOAD_MIN_FRACTION", "0.5"))
     required = max(min_samples_env, int(min_fraction * N))
     assert len(rel_diffs) >= required, (
-    f"Insufficient deltaH_scope_diff coverage ({len(rel_diffs)}/{N}); need >= {required}. "
+        f"Insufficient deltaH_scope_diff coverage ({len(rel_diffs)}/{N}); need >= {required}. "
         "Increase overrides to force harder queries or lower requirement via env vars "
         "NORMALIZATION_LOAD_MIN_SAMPLES / NORMALIZATION_LOAD_MIN_FRACTION."
     )
