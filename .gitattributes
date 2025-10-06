@@ -1,0 +1,21 @@
+# Linguist overrides to emphasize Python source and de-weight docs/man-like content
+
+# Treat all Python files as Python (explicit for clarity)
+*.py linguist-language=Python
+
+# Mark documentation & non-source as documentation so they don't dominate language stats
+*.md linguist-documentation
+*.rst linguist-documentation
+*.roff linguist-documentation
+*.man linguist-documentation
+*.1 linguist-documentation
+*.2 linguist-documentation
+*.3 linguist-documentation
+docs/* linguist-documentation
+
+# Common generated / ancillary artifacts (adjust if needed)
+*.svg linguist-documentation
+*.json linguist-generated
+
+# Exclude test fixture data from language weighting if added later
+fixtures/* linguist-documentation
