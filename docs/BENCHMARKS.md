@@ -35,12 +35,27 @@ This document describes how to measure retrieval uplift and operational cost for
 
 Synthetic limitations: relevance is purely cosine-based; structural uplift may appear modest if coherence correlates strongly with baseline similarity. Real datasets (MS MARCO, NQ) introduce semantic variation benefiting structure smoothing.
 
-## Real Dataset Integration (Deferred)
-To evaluate on public corpora:
-1. Preprocess queries and qrels into `queries.jsonl`, `qrels.jsonl` (see `benchmarks/datasets.py`).
-2. Generate / load corpus embeddings accessible to the connector (e.g., ingest into Pinecone or pgvector).
-3. Run sidecar pointing at that backend with `USE_MOCK=false`.
-4. Use `benchmarks/run_benchmark.py --dataset-root <path> --k 10 --m 400` (extension required to fetch actual ANN results; current script implements synthetic path only).
+## Real Dataset Integration (Initial Loader Support)
+Lightweight loaders now exist for **MS MARCO** and **Natural Questions** via:
+
+```bash
+python -m benchmarks.run_benchmark --dataset msmarco --queries 25 --k 10 --m 400 --no-api
+python -m benchmarks.run_benchmark --dataset nq --queries 25 --k 10 --m 400 --no-api
+```
+
+Behavior:
+* If preprocessed JSONL files are found in: `~/.cache/consciousdb/benchmarks/<dataset>/` they are sampled.
+  - Required files: `queries.jsonl` (schema: `{ "id": str, "text": str }`) and `qrels.jsonl` (`{ "query_id": str, "relevant_ids": [str,...] }`).
+* If absent, a tiny embedded sample (3 queries) is used so tests and examples remain runnable.
+* A placeholder random corpus is generated from the union of gold IDs to let the cosine baseline compute nDCG/MRR.
+* API calls are **skipped** when `--no-api` is set (recommended until you ingest the real corpus). Without ingestion the ConsciousDB methods would not return those document IDs.
+
+Full evaluation steps (external, not automated here yet):
+1. Download original datasets (MS MARCO passage, NQ open) under their respective licenses.
+2. Preprocess into JSONL queries + qrels (optionally add `corpus.jsonl`).
+3. Ingest corpus into your vector store (e.g., Pinecone or pgvector) with matching IDs.
+4. Launch the server pointing at that connector.
+5. Run benchmark without `--no-api` to capture ConsciousDB metrics.
 
 ## Report Format
 Markdown table with absolute metrics and uplift percentages, plus a JSON artifact for downstream plotting / dashboards.
@@ -67,24 +82,28 @@ Planned enhancements:
 - Latency decomposition percentiles (embed / ann / build / solve / rank).
 - Comparative reranker baseline (e.g., cross-encoder). *Out-of-scope for open-core; added in premium eval toolkit.*
 
-## Running the Synthetic Benchmark
+## Running Benchmarks
 ```bash
-# Ensure sidecar running locally (mock connector for speed)
-$env:USE_MOCK = 'true'
-uvicorn api.main:app --port 8080 --workers 1
-
-# New terminal
+# Install benchmark extras (if defined)
 python -m pip install -e .[bench]
-python -m benchmarks.run_benchmark --synthetic --queries 50 --k 10 --m 400 --output benchmark_report.md --json benchmark_report.json
+
+# Synthetic (full comparison, requires running API):
+uvicorn api.main:app --port 8080 --workers 1 &
+python -m benchmarks.run_benchmark --dataset synthetic --queries 50 --k 10 --m 400 --output bench.md --json bench.json
+
+# MS MARCO sample (baseline only wiring):
+python -m benchmarks.run_benchmark --dataset msmarco --queries 25 --k 10 --m 400 --no-api
 ```
-Output:
+Outputs:
 - `benchmark_report.md` – human-readable table.
 - `benchmark_report.json` – structured artifact for charts.
 
 ## Governance & Regression
 Integrate a reduced-query smoke benchmark (e.g., 10 queries) into CI (scheduled) asserting minimum uplift thresholds once you have stable empirical baselines (e.g., nDCG uplift ≥ 10%). Avoid gating the main PR flow until variance characterized.
 
----# Benchmark & Uplift Methodology
+---
+
+# Benchmark & Uplift Methodology
 
 Establish consistent measurement of relevance uplift, latency, and stability.
 
@@ -137,8 +156,8 @@ Queries: <count>
 M: <value>  K: <values tested>
 Alpha: <value or adaptive>
 
-nDCG@5 (vector, conscious): 0.412 / 0.437 (+6.1%)
-nDCG@10 (vector, conscious): 0.451 / 0.472 (+4.7%)
+nDCG@5 (vector vs conscious): 0.412 / 0.437 (+6.1%)
+nDCG@10 (vector vs conscious): 0.451 / 0.472 (+4.7%)
 Latency P50/P95 (ms): 82 / 221
 Fallback Rate: 3.2% (forced excluded)
 Easy Gate Rate: 44%
@@ -148,9 +167,12 @@ Suggested Alpha (median): 0.11
 ```
 
 ## Interpreting ΔH vs Uplift
-- ΔH_total high but low uplift: coherence improving on off-topic cluster → inspect relevance labels; consider connector filter.
-- ΔH_total low but positive uplift: small structural smoothing suffices; gating thresholds may be near optimal.
-- Negative correlation between redundancy and uplift: consider enabling MMR earlier or adjusting threshold.
+- ΔH_total high but low uplift: coherence improving on off-topic cluster →
+  inspect relevance labels; consider connector filter.
+- ΔH_total low but positive uplift: small structural smoothing suffices;
+  gating thresholds may be near optimal.
+- Negative correlation between redundancy and uplift: consider enabling MMR
+  earlier or adjusting threshold.
 
 ## Automation & CI Guards (Future)
 - Store baseline JSON with benchmark summary.
