@@ -3,7 +3,7 @@ import json
 import pytest
 
 try:
-    import jsonschema  # type: ignore
+    import jsonschema
 except ImportError:  # pragma: no cover
     jsonschema = None
 

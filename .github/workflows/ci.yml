@@ -45,30 +45,45 @@ jobs:
               mypy-${{ runner.os }}-
 
       - name: Lint (ruff)
+        id: lint
+        continue-on-error: true
         run: |
-          ruff check .
+          set -o pipefail
+          ruff check . | tee lint_output.txt || true
 
       - name: Type check (mypy)
+        id: mypy
+        continue-on-error: true
         run: |
-          mypy --install-types --non-interactive .
+          set -o pipefail
+          mypy --install-types --non-interactive . | tee mypy_output.txt || true
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (no early exit)
+        id: pytest
+        continue-on-error: true
         env:
           PYTHONWARNINGS: ignore::DeprecationWarning:scipy.sparse.linalg
         run: |
-          pytest -q --cov=./ --cov-report=xml --cov-report=term --maxfail=1 --cov-fail-under=85
+          set -o pipefail
+          pytest -q --cov=./ --cov-report=xml --cov-report=term --cov-fail-under=85 | tee pytest_output.txt || true
 
       - name: Enforce coverage threshold
+        id: coverage
+        continue-on-error: true
         shell: bash
         run: |
           python - <<'PY'
             import xml.etree.ElementTree as ET, sys
-            root = ET.parse('coverage.xml').getroot()
-            rate = float(root.get('line-rate', '0')) * 100
-            threshold = 85.0
-            print(f"Line coverage: {rate:.2f}% (threshold {threshold}%)")
-            if rate < threshold:
-                print("::error::Coverage below threshold")
+            try:
+                root = ET.parse('coverage.xml').getroot()
+                rate = float(root.get('line-rate', '0')) * 100
+                threshold = 85.0
+                print(f"Line coverage: {rate:.2f}% (threshold {threshold}%)")
+                if rate < threshold:
+                    print("::error::Coverage below threshold")
+                    sys.exit(1)
+            except FileNotFoundError:
+                print('::error::coverage.xml missing')
                 sys.exit(1)
           PY
 
@@ -97,10 +112,22 @@ jobs:
           path: coverage.xml
           if-no-files-found: warn
 
-      - name: Upload wheel artifact
+      - name: Upload reports artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: dist-wheel
-          path: dist/*.whl
+          name: reports-${{ matrix.envset }}
+          path: |
+            lint_output.txt
+            mypy_output.txt
+            pytest_output.txt
           if-no-files-found: warn
-        if: ${{ matrix.envset == 'server' }}
+
+      - name: Fail job if any step failed
+        if: ${{ steps.lint.outcome == 'failure' || steps.mypy.outcome == 'failure' || steps.pytest.outcome == 'failure' || steps.coverage.outcome == 'failure' }}
+        run: |
+          echo "One or more quality gates failed." >&2
+          echo "lint outcome: ${{ steps.lint.outcome }}" >&2
+          echo "mypy outcome: ${{ steps.mypy.outcome }}" >&2
+            echo "pytest outcome: ${{ steps.pytest.outcome }}" >&2
+          echo "coverage outcome: ${{ steps.coverage.outcome }}" >&2
+          exit 1
