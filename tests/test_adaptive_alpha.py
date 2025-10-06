@@ -1,6 +1,7 @@
 import pytest
-from tests._fastapi_optional import TestClient, FASTAPI_AVAILABLE
+
 from api.main import SET, app
+from tests._fastapi_optional import FASTAPI_AVAILABLE, TestClient
 
 pytestmark = pytest.mark.skipif(not FASTAPI_AVAILABLE, reason="fastapi not installed (server extra missing)")
 

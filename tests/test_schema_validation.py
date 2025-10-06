@@ -1,12 +1,14 @@
 import json
+
 import pytest
-from tests._fastapi_optional import TestClient, FASTAPI_AVAILABLE
-from api.main import app
 
 try:
-    import jsonschema
+    import jsonschema  # type: ignore
 except ImportError:  # pragma: no cover
     jsonschema = None
+
+from api.main import app
+from tests._fastapi_optional import FASTAPI_AVAILABLE, TestClient
 
 pytestmark = pytest.mark.skipif(not FASTAPI_AVAILABLE, reason="fastapi not installed (server extra missing)")
 
