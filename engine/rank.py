@@ -32,7 +32,10 @@ def mmr(ids, vectors, scores, lambda_mmr=0.3, k=8):
             if val > best_val:
                 best_val = val
                 best_j = j
-    selected.append(best_j)
-    remaining.remove(best_j)
-    out.append(ids[best_j])
+        # After scanning candidates choose best_j
+        if best_j is None:  # safety guard
+            break
+        selected.append(best_j)
+        remaining.remove(best_j)
+        out.append(ids[best_j])
     return out

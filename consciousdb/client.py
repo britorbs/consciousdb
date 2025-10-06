@@ -14,14 +14,25 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
-# Reuse existing engine components.
-# Assumptions: engine.solve exposes a function `solve` or similar entrypoint.
-# If names differ, adjust imports accordingly after inspection.
-try:  # soft import pattern to avoid circular server deps
-    from engine.solve import solve_query  # type: ignore
-except Exception:  # pragma: no cover - fallback / placeholder
+
+@runtime_checkable
+class _SolveQueryFn(Protocol):  # noqa: D401
+    def __call__(
+        self,
+        query: str,
+        k: int,
+        m: int,
+        connector: Any,
+        embedder: Any,
+        overrides: dict | None,
+    ) -> dict[str, Any]: ...
+
+try:  # soft import pattern
+    from engine.solve import solve_query as _real_solve_query  # noqa: F401
+    solve_query: _SolveQueryFn | None = _real_solve_query
+except Exception:  # pragma: no cover
     solve_query = None
 
 
@@ -112,7 +123,8 @@ class ConsciousClient:
             raise ValueError("m must be >= k")
         t0 = time.time()
         eff_overrides = {**self.solver_overrides, **(overrides or {})}
-        raw = solve_query(query, k=k, m=m, connector=self.connector, embedder=self.embedder, overrides=eff_overrides)
+        assert solve_query is not None  # mypy narrow
+        raw = solve_query(query, k, m, self.connector, self.embedder, eff_overrides)
         t1 = time.time()
         # Expected raw format (align with existing API output):
         # {

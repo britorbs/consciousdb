@@ -4,16 +4,19 @@
 
 # ConsciousDB – Your Vector Database *Is* the Model (formerly "consciousdb-sidecar")
 
+> ⚠️ **v3 SDK‑First Migration:** The legacy sidecar HTTP pattern is now optional. The canonical integration path is the in‑process SDK (no server). The package name is `consciousdb` (old `consciousdb-sidecar` deprecated). The high‑level stable entrypoint is `solve_query` (surfaced via `ConsciousClient.query`). Server extras remain for transitional deployments.
+
 <!-- Badges -->
 ![CI](https://img.shields.io/github/actions/workflow/status/Maverick0351a/consciousdb/test.yml?branch=main&label=CI)
 ![Coverage](https://img.shields.io/codecov/c/github/Maverick0351a/consciousdb/main?logo=codecov&label=coverage)
+<a href="https://app.codecov.io/gh/Maverick0351a/consciousdb" target="_blank"><img src="https://codecov.io/gh/Maverick0351a/consciousdb/branch/main/graph/badge.svg" alt="Codecov" /></a>
 ![License](https://img.shields.io/badge/License-BSL%201.1-blue)
 
 > Stop stacking opaque rerankers. ConsciousDB turns the structure already latent in your vectors into an **explainable retrieval intelligence layer** – no training, no drift, full receipts.
 
 > Elevator (non‑technical): **ConsciousDB makes vector search explainable. See exactly *why* results rank—without adding another AI model.**
 
-## � Install
+## 📦 Install
 Renamed package: publish / install as `consciousdb` (the previous `consciousdb-sidecar` name is deprecated).
 
 SDK‑only (lean: numpy, scipy, pydantic):
@@ -73,6 +76,26 @@ Instead of inserting a new model, each query induces a tiny, ephemeral k‑NN gr
 | Tune / re-embed corpus | Labeling effort, loss of generality | Live structural attribution, audit trail |
 
 **ConsciousDB:** Light, explainable, works with what you already have.
+
+## ✨ Quickstart (Pure SDK – Recommended)
+```python
+from consciousdb import ConsciousClient
+
+client = ConsciousClient()  # uses default in‑memory mock unless env connectors set
+result = client.query("vector governance controls", k=6, m=200)
+print(result.deltaH_total, result.items[0].id)
+```
+Override connectors / embedders with environment variables or by passing instances to `ConsciousClient(...)` (see Connectors section below). The call internally performs:
+1. Embed query
+2. Recall M candidates from your vector DB (or mock)
+3. Build ephemeral mutual kNN graph
+4. Run SPD energy solve (CG)
+5. Decompose ΔH into per-item parts
+6. Rank (optionally diversify) and return a structured receipt
+
+Return object fields (stable): `items`, `deltaH_total`, `diagnostics` (timings, cg_iters, redundancy, fallback, parameters).
+
+For lower-level experimentation you can import `from engine.solve import solve_query` directly.
 
 ## ✨ Quickstart (Local Mock via Server Extra)
 ```bash
@@ -146,15 +169,7 @@ flowchart LR
 ```
 See full evolution in `docs/RECEIPTS.md`.
 
-## 🧠 Pure SDK Usage (No HTTP Server)
-```python
-from consciousdb import ConsciousClient
-
-client = ConsciousClient()
-res = client.query("vector governance controls", k=6, m=200)
-print(res.deltaH_total, res.items[0].id)
-```
-For custom connectors / embedders supply them in the constructor (see examples to be added).
+<!-- (Pure SDK section consolidated above) -->
 
 ## 🔌 Connectors (BYOVDB)
 ```bash
@@ -201,9 +216,7 @@ Feedback-driven alpha suggestion & bandit exploration are *opt‑in*; details in
 
 ---
 
-## 📖 Deep Dive Documentation
-Ready to go deeper? Start here:
-
+## 📖 Documentation Index
 | Topic | Where |
 |-------|-------|
 | API & Schemas | `docs/API.md` |
@@ -215,20 +228,28 @@ Ready to go deeper? Start here:
 | Adaptive Loop | `docs/ADAPTIVE.md` |
 | Benchmarks | `docs/BENCHMARKS.md` |
 
-## 📚 More Documentation (Index)
-| Topic | Where |
-|-------|-------|
-| API & Schemas | `docs/API.md` |
-| Receipts Spec | `docs/RECEIPTS.md` |
-| Configuration Matrix | `docs/CONFIGURATION.md` |
-| Architecture | `docs/ARCHITECTURE.md` |
-| Security Model | `docs/SECURITY.md` |
-| Pricing Rationale | `docs/PRICING_MODEL.md` |
-| Adaptive Loop | `docs/ADAPTIVE.md` |
-| Benchmarks | `docs/BENCHMARKS.md` |
+## 🧭 Migrating from Sidecar to SDK
+| Before (Sidecar) | After (SDK) | Notes |
+|------------------|------------|-------|
+| POST /query JSON | `client.query(q, k, m)` | Same schema, now direct object return |
+| Env: USE_MOCK | Auto in-memory mock | Provide real connector envs to switch |
+| curl + jq | Python call | Lower latency, fewer hops |
+| Custom reranker service | Built-in energy solve | ΔH receipt is explanation |
+| Server scaling | In-process function | Scale with your app threads |
+
+Deprecation timeline: the HTTP server extra will remain until at least v3.x LTS; receipt field backward compatibility maintained (additive only).
 
 ## 🛠 Contributing
 Small, tested PRs welcome. Preserve backward compatibility of receipt fields; add new diagnostics additively. See `CONTRIBUTING.md`.
+
+## 🧪 Examples
+Quickstart script: `examples/quickstart_sdk.py`
+
+Run (PowerShell):
+```powershell
+python examples/quickstart_sdk.py
+```
+Outputs top results and `deltaH_total` plus demonstrates both `ConsciousClient` and direct `solve_query` usage.
 
 ## 🔐 License
 Business Source License 1.1 → converts to Apache 2.0 on **2028‑10‑05**. Evaluation & internal non‑prod use are free; commercial prod use requires a commercial grant until the change date. See `LICENSE` + `docs/LICENSING.md`.

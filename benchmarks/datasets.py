@@ -27,11 +27,11 @@ TSV and NQ JSON into the expected simplified JSONL format.
 
 from __future__ import annotations
 
+import json
+import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-import os
-import json
-from typing import Iterable
 
 import numpy as np
 
@@ -178,7 +178,11 @@ def load_nq(sample_size: int = 50, seed: int = 0) -> list[BenchmarkBatch]:
     return _sample_batches(records, sample_size=sample_size, seed=seed)
 
 
-def build_random_corpus_from_gold(batches: Iterable[BenchmarkBatch], dim: int, seed: int = 0) -> tuple[np.ndarray, list[str]]:
+def build_random_corpus_from_gold(
+    batches: Iterable[BenchmarkBatch],
+    dim: int,
+    seed: int = 0,
+) -> tuple[np.ndarray, list[str]]:
     """Utility: build random normalized vectors for the union of gold IDs.
 
     This allows the harness to compute a *placeholder* cosine baseline when

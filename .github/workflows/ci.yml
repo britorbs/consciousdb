@@ -28,6 +28,15 @@ jobs:
           pip install --upgrade pip
           pip install .[dev,security]
           pip install build
+          # Optional: warm caches for ruff/mypy if needed later
+
+      - name: Cache mypy
+        uses: actions/cache@v4
+        with:
+            path: .mypy_cache
+            key: mypy-${{ runner.os }}-${{ hashFiles('**/*.py') }}
+            restore-keys: |
+              mypy-${{ runner.os }}-
 
       - name: Lint (ruff)
         run: |
@@ -38,8 +47,10 @@ jobs:
           mypy --install-types --non-interactive .
 
       - name: Run tests with coverage
+        env:
+          PYTHONWARNINGS: ignore::DeprecationWarning:scipy.sparse.linalg
         run: |
-          pytest -q --cov=./ --cov-report=xml --cov-report=term --maxfail=1
+          pytest -q --cov=./ --cov-report=xml --cov-report=term --maxfail=1 --cov-fail-under=85
       - name: Enforce coverage threshold
         shell: bash
         run: |
@@ -53,6 +64,13 @@ jobs:
                 print("::error::Coverage below threshold")
                 sys.exit(1)
           PY
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage.xml
+          fail_ci_if_error: true
+          verbose: true
 
       - name: Build wheel
         run: |

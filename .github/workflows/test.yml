@@ -1,9 +1,10 @@
-name: Test & Validate
+name: Test & Validate (DEPRECATED - use ci.yml)
 
 on:
   push:
     branches: [ main ]
   pull_request:
+  workflow_dispatch: {}
 
 jobs:
   test:
@@ -38,20 +39,10 @@ jobs:
           USE_MOCK: 'true'
           NORMALIZATION_LOAD_N: '0'  # disable long load test in CI
         run: |
-          pytest -k 'not normalization_load' -v --maxfail=1 --cov=. --cov-report=xml
+          echo "This workflow is deprecated; prefer ci.yml" >&2
+          pytest -k 'not normalization_load' -v --maxfail=1 --cov=. --cov-report=xml --cov-fail-under=85 || echo "(Non-blocking in deprecated workflow)"
 
-      - name: Enforce coverage threshold (85%)
-        run: |
-          python - <<'PY'
-            import xml.etree.ElementTree as ET, sys
-            root = ET.parse('coverage.xml').getroot()
-            rate = float(root.get('line-rate', '0')) * 100
-            threshold = 85.0
-            print(f"Line coverage: {rate:.2f}% (threshold {threshold}%)")
-            if rate < threshold:
-                print("::error::Coverage below threshold")
-                sys.exit(1)
-          PY
+      # Coverage threshold enforced in ci.yml. Kept non-fatal here for transition.
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
