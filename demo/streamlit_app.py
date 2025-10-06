@@ -65,10 +65,17 @@ if run_clicked and query.strip():
                         st.warning("No items returned.")
                     for i, it in enumerate(items, start=1):
                         with st.expander(f"Rank {i}: {it['id']}"):
-                            st.markdown(f"**Score:** {it['score']:.4f}  |  **Align:** {it['align']:.4f}  |  **Baseline:** {it['baseline_align']:.4f}")
+                            score_line = (
+                                f"**Score:** {it['score']:.4f}  |  **Align:** {it['align']:.4f}  |  "
+                                f"**Baseline:** {it['baseline_align']:.4f}"
+                            )
+                            st.markdown(score_line)
                             et = it.get("energy_terms", {})
                             st.markdown(
-                                f"ΔH components — coherence: {et.get('coherence_drop', 0):.4f}  •  anchor: {et.get('anchor_drop', 0):.4f}  • ground: {et.get('ground_penalty', 0):.4f}"
+                                "ΔH components — "
+                                f"coh: {et.get('coherence_drop', 0):.4f}  •  "
+                                f"anchor: {et.get('anchor_drop', 0):.4f}  •  "
+                                f"ground: {et.get('ground_penalty', 0):.4f}"
                             )
                             if it.get("neighbors"):
                                 st.caption("Top neighbors (weight)")
@@ -99,6 +106,9 @@ else:
     st.caption("Enter a query and click 'Run Search' to view coherence receipts.")
 
 st.markdown(
-    "<hr />\n<small>Demo uses the mock connector unless remote API configured. Set CONSCIOUSDB_API env to point to a Cloud Run sandbox or other deployment.</small>",
+    (
+        "<hr />\n<small>Demo uses the mock connector unless remote API configured. "
+        "Set CONSCIOUSDB_API env to point to a Cloud Run sandbox or other deployment.</small>"
+    ),
     unsafe_allow_html=True,
 )

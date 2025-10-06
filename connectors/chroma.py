@@ -25,7 +25,14 @@ class ChromaConnector(BaseConnector):
             from chromadb.config import Settings as ChromaSettings  # type: ignore
         except Exception as e:  # pragma: no cover - import guard
             raise RuntimeError("chromadb not installed. Install with 'pip install .[connectors-chroma]'") from e
-        self._client = chromadb.Client(ChromaSettings(chroma_api_impl="rest", chroma_server_host=host.replace("http://", "").replace("https://", "")))  # naive host parse
+        # Initialize REST client (strip protocol if provided).
+        host_slim = host.replace("http://", "").replace("https://", "")
+        self._client = chromadb.Client(
+            ChromaSettings(
+                chroma_api_impl="rest",
+                chroma_server_host=host_slim,
+            )
+        )  # naive host parse
         self.collection_name = collection
         self.max_retries = max_retries
         self._collection = None
@@ -58,8 +65,17 @@ class ChromaConnector(BaseConnector):
             raise ValueError("query_vec must be 1-D")
         collection = self._col()
 
-        def _do_query():
-            return collection.query(query_embeddings=[q.tolist()], n_results=int(m), include=["embeddings", "distances", "metadatas", "documents"])
+        def _do_query():  # wrapped for retry; keep args explicit
+            return collection.query(
+                query_embeddings=[q.tolist()],
+                n_results=int(m),
+                include=[
+                    "embeddings",
+                    "distances",
+                    "metadatas",
+                    "documents",
+                ],
+            )
 
         res = self._retry("query", _do_query)
         ids = (res.get("ids") or [[]])[0]

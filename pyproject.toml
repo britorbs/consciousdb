@@ -97,6 +97,7 @@ ignore = []
 "api/schemas.py" = ["N815"]
 "tests/*.py"  = ["N802", "N803", "N806", "N815", "E501"]
 "adaptive/manager.py" = ["N803", "N815"]
+"examples/quick_start.ipynb" = ["N803", "N806", "N816", "E501", "E702"]
 
 [tool.mypy]
 python_version = "3.11"

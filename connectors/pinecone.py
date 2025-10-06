@@ -23,7 +23,9 @@ class PineconeConnector(BaseConnector):
         try:
             from pinecone import Pinecone  # type: ignore
         except Exception as e:  # pragma: no cover - import guard
-            raise RuntimeError("pinecone-client not installed. Install with 'pip install .[connectors-pinecone]'") from e
+            raise RuntimeError(
+                "pinecone-client not installed. Install with 'pip install .[connectors-pinecone]'"
+            ) from e
         self._pc_cls = Pinecone  # store for potential lazy re-init
         self.api_key = api_key
         self.index_name = index_name
