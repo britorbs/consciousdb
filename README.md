@@ -2,14 +2,14 @@
   <img src="docs/Wordmark%20Logo%20for%20ConsciousDB.svg" alt="ConsciousDB Wordmark" width="420" />
 </p>
 
-# ConsciousDB – Your Vector Database *Is* the Model (formerly "consciousdb-sidecar")
+# ConsciousDB – Your Vector Database *Is* the Model
 
-> ⚠️ **v3 SDK‑First Migration:** The legacy sidecar HTTP pattern is now optional. The canonical integration path is the in‑process SDK (no server). The package name is `consciousdb` (old `consciousdb-sidecar` deprecated). The high‑level stable entrypoint is `solve_query` (surfaced via `ConsciousClient.query`). Server extras remain for transitional deployments.
+> ⚠️ **v3 SDK‑First Migration:** The HTTP server is now optional. The canonical integration path is the in‑process SDK (no server). The high‑level stable entrypoint is `solve_query` (surfaced via `ConsciousClient.query`). Server extras remain for transitional deployments.
 
 <!-- Badges -->
-![CI](https://img.shields.io/github/actions/workflow/status/Maverick0351a/consciousdb/test.yml?branch=main&label=CI)
-![Coverage](https://img.shields.io/codecov/c/github/Maverick0351a/consciousdb/main?logo=codecov&label=coverage)
-<a href="https://app.codecov.io/gh/Maverick0351a/consciousdb" target="_blank"><img src="https://codecov.io/gh/Maverick0351a/consciousdb/branch/main/graph/badge.svg" alt="Codecov" /></a>
+[![Tests](https://github.com/Maverick0351a/consciousdb/actions/workflows/tests.yml/badge.svg)](https://github.com/Maverick0351a/consciousdb/actions/workflows/tests.yml)
+[![Quality](https://github.com/Maverick0351a/consciousdb/actions/workflows/quality.yml/badge.svg)](https://github.com/Maverick0351a/consciousdb/actions/workflows/quality.yml)
+[![Coverage](https://codecov.io/gh/Maverick0351a/consciousdb/branch/main/graph/badge.svg)](https://app.codecov.io/gh/Maverick0351a/consciousdb)
 ![License](https://img.shields.io/badge/License-BSL%201.1-blue)
 
 > Stop stacking opaque rerankers. ConsciousDB turns the structure already latent in your vectors into an **explainable retrieval intelligence layer** – no training, no drift, full receipts.
@@ -17,7 +17,6 @@
 > Elevator (non‑technical): **ConsciousDB makes vector search explainable. See exactly *why* results rank—without adding another AI model.**
 
 ## 📦 Install
-Renamed package: publish / install as `consciousdb` (the previous `consciousdb-sidecar` name is deprecated).
 
 SDK‑only (lean: numpy, scipy, pydantic):
 ```bash
