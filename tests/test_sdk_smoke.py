@@ -8,7 +8,7 @@ from __future__ import annotations
 import numpy as np
 
 from consciousdb import ConsciousClient
-from consciousdb import client as client_mod  # type: ignore
+from consciousdb import client as client_mod
 
 
 class StubConnector:
@@ -63,8 +63,8 @@ def _fake_solve_query(query: str, k: int, m: int, connector, embedder, overrides
 
 
 # Monkeypatch if needed
-if getattr(client_mod, "solve_query", None) is None:
-    client_mod.solve_query = _fake_solve_query  # type: ignore
+if getattr(client_mod, "solve_query", None) is None:  # runtime monkeypatch for smoke path
+    client_mod.solve_query = _fake_solve_query
 
 
 def test_conscious_client_smoke():

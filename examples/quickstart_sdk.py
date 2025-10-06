@@ -42,8 +42,10 @@ class InMemoryConnector:
         ]
 
     def fetch_vectors(self, ids: list[str]) -> np.ndarray:  # not used (vectors provided above)
-        mapping = {i: idx for idx, i in enumerate(self.ids)}
-        return np.stack([self.vectors[mapping[_id]] for _id in ids]).astype(np.float32)
+        mapping: dict[str, int] = {i: idx for idx, i in enumerate(self.ids)}
+        arr_list = [self.vectors[mapping[_id]] for _id in ids]
+        stacked: np.ndarray = np.stack(arr_list).astype(np.float32)
+        return stacked
 
 
 class MockEmbedder:

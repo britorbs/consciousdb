@@ -24,7 +24,7 @@ import numpy as np
 from consciousdb import Config, ConsciousClient
 
 try:
-    from prometheus_client import CollectorRegistry, Counter, Histogram, generate_latest  # type: ignore
+    from prometheus_client import CollectorRegistry, Counter, Histogram, generate_latest
 except Exception as e:  # pragma: no cover
     raise SystemExit("prometheus_client not installed – install server extra: pip install 'consciousdb[server]'") from e
 
