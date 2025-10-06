@@ -6,10 +6,18 @@ The format (for released versions) adheres to [Keep a Changelog](https://keepach
 
 ## [Unreleased]
 ### Added
+- Receipt schema v2 activation: normalized coherence attribution now default (`USE_NORMALIZED_COH=true`).
+- Escape hatch `FORCE_LEGACY_COH` allowing temporary reversion to legacy attribution during grace window.
+- Additional receipt diagnostics stabilization: clarified `deltaH_rel_diff` semantics as scope divergence (full trace vs returned top‑k) to aid monitoring.
 ### Changed
+- Bumped `receipt_version` from 1 to 2 (normalized coherence default); updated documentation (`docs/RECEIPTS.md`, `NORMALIZATION_PLAN.md`).
+- Updated receipts doc to mark normalization Phases 0–2 complete and outline Phase 3 cleanup targets.
 ### Fixed
+- Clarified invariants and scope divergence interpretation to prevent misclassification of expected variance as correctness regression.
 ### Removed
 ### Deprecated
+- `coh_drop_total` alias remains deprecated; removal scheduled for Phase 3 cleanup.
+- `deltaH_rel_diff` slated for rename/removal (`deltaH_scope_diff`) post legacy code path deletion.
 ### Security
 ### Performance
 
