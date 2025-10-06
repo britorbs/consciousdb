@@ -1,371 +1,149 @@
-# ConsciousDB – Physics-Based RAG Reranking
-
 <p align="center">
   <img src="docs/Wordmark%20Logo%20for%20ConsciousDB.svg" alt="ConsciousDB Wordmark" width="420" />
 </p>
+
+# ConsciousDB – Your Vector Database *Is* the Model
 
 <!-- Badges -->
 ![CI](https://img.shields.io/github/actions/workflow/status/Maverick0351a/consciousdb/test.yml?branch=main&label=CI)
 ![Coverage](https://img.shields.io/codecov/c/github/Maverick0351a/consciousdb/main?logo=codecov&label=coverage)
 ![License](https://img.shields.io/badge/License-BSL%201.1-blue)
 
-<sub>Coverage badge powered by Codecov (public repo does not require a token). Threshold enforced at 85% in CI.</sub>
+> Stop stacking opaque rerankers. ConsciousDB turns the structure already latent in your vectors into an **explainable retrieval intelligence layer** – no training, no drift, full receipts.
 
-> ConsciousDB is the physics-based, model‑free reranking sidecar for RAG: a 50ms P95 coherence solve that shows **why** results rank via auditable ΔH energy receipts — no training, no drift, just math on your existing vectors.
+## 🚩 The Problem
+Vector search gives you similarity – but not *understanding*. Teams struggle to answer:
+- *Why* did these items outrank others?
+- *How* do the results relate to each other (support / redundancy / gaps)?
+- *What* specific structure change would improve relevance?
 
-### Core Highlights
-🚀 Explainable reranking (per-item energy decomposition, neighbors, solver stats)<br/>
-📊 Energy receipts (ΔH trace identity + component attribution)<br/>
-🧠 Model-free (your vector DB *is* the model; convex optimization, not another black box)<br/>
-⚡ Low latency (CPU-friendly SPD solve; typical ~50ms P95 in mock/local tests)<br/>
-🔒 Non-invasive (BYO vector store: Pinecone, pgvector, Chroma, Vertex AI, Memory)<br/>
-🛡️ Audit & ops ready (structured diagnostics, Prometheus metrics, receipt versioning)
+Typical fixes add another neural reranker (more latency, drift, & opacity) or a heavy offline graph build. Both increase operational surface and hide reasoning.
 
----
+## 🎯 Core Idea (Database-as-Model)
+Instead of inserting a new model, each query induces a tiny, ephemeral k‑NN graph over the recalled candidates. A fast **structure‑aware energy solve** (symmetric positive definite system) refines embeddings and produces a conserved ΔH (energy uplift) that naturally decomposes per item. That decomposition *is* the ranking explanation.
 
-## Why it exists
-Raw vector DBs return nearest neighbors but cannot tell you **why** results rank or how structure could adapt. Rerankers shuffle scores heuristically; global graph builds are heavy and intrusive. ConsciousDB induces a **local subgraph per query**, optimizes a convex coherence objective, and returns results with an **explainability receipt** (ΔH + per-item decomposition). You keep your embeddings where they already live (Pinecone, pgvector, Vertex AI, Chroma) — we pull only ephemeral candidate vectors.
+| You Want | Traditional Path | ConsciousDB Path |
+|----------|------------------|------------------|
+| Better ordering | Add / fine‑tune model | Solve energy on existing vectors |
+| Explanation | Post‑hoc approximations | Built‑in per‑item ΔH terms |
+| Low ops overhead | Maintain model infra | Stateless CPU sidecar |
+| Stability | Weight drift & retrains | No learned weights, fresh graph per query |
+| Auditability | Sparse logs | Structured receipt JSON |
 
----
+## 💎 What You Get
+**Energy Receipt** – `deltaH_total` plus per-item components (coherence contribution, anchor / ground terms, neighbors, timings, fallback reasons).  
+**Model‑Free Uplift** – Improved ordering using only your existing vectors.  
+**Transparent Math** – Reproducible linear algebra; no hidden gradient soup.  
+**Low Latency** – Typical local/mock ~50 ms P95 for k≤8 (CPU).  
+**Bring Your Own Vector DB** – Pinecone, pgvector, Chroma, Vertex AI, in‑memory.
 
-## The Database-as-Model Paradigm
-
-Traditional rerankers add another model layer on top of your vectors. **ConsciousDB takes a different path: your vector database *is* the model.** We do not introduce another neural network— we apply transparent convex optimization directly over the structure already latent in your embeddings.
-
-### How it works
-- **No training phase** — We operate directly on your existing embeddings (no finetuning, no labeled sets).
-- **Query-time intelligence** — Each query induces a fresh, local k-NN subgraph from the retrieved candidates.
-- **Physics-based reasoning** — We solve a positive-definite energy minimization (think molecular dynamics / springs) where similar vectors attract and incoherent structure is smoothed.
-- **Structure from data** — The graph is emergent from your vectors (mutual cosine kNN); there are no learned parameters to drift.
-
-### What this means for you
-✅ No model versioning or silent drift
-
-✅ Zero training data requirements
-
-✅ No GPU model-serving fleet (CPU-friendly solve)
-
-✅ Mathematical transparency (SPD linear system + per-term energy decomposition)
-
-✅ Your data never leaves your infrastructure boundary
-
-This “database as model” stance lets you gain model-like reranking uplift with the operational footprint of a thin sidecar.
-
----
-
-## Core Value Pillars
-- **Auditable** – Every answer ships with a receipt: `deltaH_total`, per-item `coherence_drop`, `anchor_drop`, `ground_penalty`, local neighbors & edge weights, CG iteration stats, gate/fallback reasons.
-- **Explainable & Model‑Free** – No neural reranker or learned parameters: your vectors are the model. We blend z‑scored coherence improvement with smoothed alignment after a convex (SPD) solve—fully inspectable math, not another black box.
-- **Adaptive (opt‑in)** – A sparse edge state (tenant-scoped) can learn edge strengths & hyper-parameters from feedback using lightweight bandit / Hebbian updates (no raw data copy).
-- **Non‑invasive** – BYOVDB. No corpus migration, no re-indexing. Private connectivity / VPC compatible.
-
-### ConsciousDB vs Traditional Rerankers
-| Aspect | Traditional Reranker | ConsciousDB |
-|--------|----------------------|-------------|
-| Model | Separate neural network | Your vectors ARE the model |
-| Training | Supervised / finetuning required | None – pure convex optimization |
-| Interpretability | Opaque learned weights | Per-item energy decomposition (coherence / anchor / ground) |
-| Data movement | Vectors → model → scores | Vectors → local graph → energy solve |
-| Deployment | Model serving infra + scaling | Lightweight sidecar (stateless compute + optional tiny state) |
-| Drift Surface | Silent weight drift over time | No learned weights; graph derived fresh each query |
-| Hardware | Often GPU inference | CPU-friendly iterative solver |
-| Auditing | Post-hoc approximations | First-class receipt (ΔH + terms + neighbors) |
-
----
-
-## High-Level Flow
-```mermaid
-flowchart LR
-  Q[Query] --> E[Embed]
-  E --> R[Vector DB Recall (M)]
-  R --> G[Local kNN Graph]
-  G --> S[SPD Solve (CG)]
-  S --> A[Per-Node ΔH Attribution]
-  A --> RK[Rank & Diversify]
-  RK --> RC[Receipt JSON]
-```
-1. Recall: Fetch top-M candidates from your existing vector DB.
-2. Graph Build: Mutual cosine k-NN (optionally expand for hard queries).
-3. Solve: Jacobi-preconditioned CG over normalized Laplacian + anchor/ground terms.
-4. Attribution: Per-node coherence, anchor, ground components giving ΔH conservation.
-5. Rank: Blend coherence uplift (z-scored) + smoothed alignment (optional MMR if redundancy high).
-6. Receipt: Items + per-item terms, neighbors, ΔH totals, solver diagnostics, gates/fallbacks.
-
----
-
-## Key Concepts
-| Term | Meaning |
-|------|---------|
-| ΔH / deltaH_total | Total coherence (energy) improvement from optimization vs baseline. |
-| coherence_drop_i | Node-level contribution to ΔH used in ranking. |
-| Smoothed alignment | Cosine similarity using solved embedding Q*_i (structure-aware). |
-| Redundancy | Mean pairwise cosine among provisional top-K (diversification signal). |
-| Fallback Reason | Enumerated trigger (`forced`, `iters_cap`, `residual`). |
-
----
-
-## Quickstart (Local / Mock)
+## ✨ Quickstart (Local Mock)
 ```bash
 python -m venv .venv
-# PowerShell:
-. .\.venv\Scripts\Activate.ps1
+. ./.venv/Scripts/Activate.ps1   # PowerShell
 pip install -r requirements.txt
-
-$env:USE_MOCK = 'true'
-uvicorn api.main:app --reload --port 8080
+$env:USE_MOCK='true'
+uvicorn api.main:app --port 8080 --reload
 ```
 Query:
 ```bash
-curl -s -X POST http://localhost:8080/query -H "content-type: application/json" -d '{
-  "query": "vector governance controls",
-  "k": 6, "m": 400,
-  "overrides": {
-    "alpha_deltaH": 0.1,
-    "similarity_gap_margin": 0.15,
-    "coh_drop_min": 0.01,
-    "expand_when_gap_below": 0.08,
-    "iters_cap": 20,
-    "residual_tol": 0.001
-  }
-}' | jq
+curl -s -X POST http://localhost:8080/query \
+  -H "content-type: application/json" \
+  -d '{"query":"vector governance controls","k":6,"m":400}' | jq '.items[0],.diagnostics.deltaH_total'
+```
+Full schema: see `docs/API.md` & `docs/RECEIPTS.md`.
+
+## 🧪 High-Level Flow
+```mermaid
+flowchart LR
+  Q[Query] --> E[Embed]
+  E --> R[Recall M]
+  R --> G[Local kNN Graph]
+  G --> S[Energy Solve]
+  S --> A[Per-Item ΔH Attribution]
+  A --> RK[Rank]
+  RK --> RC[Receipt]
 ```
 
----
+1. Recall M candidates from your existing DB.  
+2. Build mutual cosine k‑NN subgraph (expand if similarity gap low).  
+3. Solve small SPD system (normalized Laplacian + anchor/ground).  
+4. Attribute conserved ΔH to items (coherence + structural terms).  
+5. Blend coherence uplift & (optionally) structure‑smoothed alignment; diversify if redundancy high.  
+6. Ship the receipt.
 
-## BYOVDB Connectors
-Set one connector (others ignored). For full configuration matrix (all env vars, defaults, security notes) see `docs/CONFIGURATION.md`.
-```bash
-# pgvector
-$env:CONNECTOR = 'pgvector'
-$env:PG_DSN = 'postgresql://user:pass@host:5432/db'
-
-# Pinecone
-$env:PINECONE_API_KEY = '...'
-$env:PINECONE_INDEX = 'my-index'
-$env:CONNECTOR = 'pinecone'
-
-# Chroma
-$env:CHROMA_HOST = 'http://localhost:8000'
-$env:CHROMA_COLLECTION = 'docs'
-$env:CONNECTOR = 'chroma'
-
-# Vertex AI
-$env:GCP_PROJECT = 'my-project'
-$env:VERTEX_INDEX = 'my-index'
-$env:CONNECTOR = 'vertex'
-```
-Embedders (see also `CONFIGURATION.md` for all options):
-```bash
-$env:EMBEDDER = 'sentence_transformer'   # openai | vertex | sentence_transformer
-$env:ST_MODEL = 'all-MiniLM-L6-v2'
-```
-
----
-
-## Explainability Receipt (Preview)
-(Fields marked * are planned additions in the pivot phases.)
+## 🧾 Receipt Snapshot
 ```json
 {
   "deltaH_total": 2.314,
-  "items": [
-    {
-      "id": "doc_42",
-      "score": 0.873,
-      "coherence_drop": 0.156,
-      "anchor_drop": -0.021,
-      "ground_penalty": 0.004,
-      "neighbors": [ { "id": "doc_17", "weight": 0.82 }, { "id": "doc_88", "weight": 0.79 } ],
-      "activation": 0.093
-    }
-  ],
+  "items": [{ "id": "doc_42", "coherence_drop": 0.156, "anchor_drop": -0.021, "neighbors": [{"id":"doc_17","weight":0.82}] }],
   "redundancy": 0.31,
-  "similarity_gap": 0.42,
-  "used_expand_1hop": false,
-  "used_deltaH": true,
-  "used_mmr": false,
   "cg_iters": 9,
-  "residual": 0.0007,
   "fallback": false,
-  "fallback_reason": null,
-  "timings_ms": { "embed": 3.1, "ann": 18.6, "build": 4.2, "solve": 22.5, "rank": 1.7, "total": 50.1 }
+  "timings_ms": { "solve": 22.5, "total": 50.1 }
 }
 ```
+See full evolution in `docs/RECEIPTS.md`.
 
-Full specification & evolution: see `docs/RECEIPTS.md`.
-
----
-
-## Roadmap (Pivot Phases)
-1. Receipt Fundamentals – expose `deltaH_total`, populate neighbors with weights, alias old `coh_drop_total`.
-2. Observability & Audit – audit log stream, deltaH histogram, gate counters, receipt completeness metrics.
-3. Adaptive Scaffold – opt‑in edge-state store + feedback-driven updates (no raw data retention). (In progress: suggested_alpha v0, query_id linkage, feedback correlation.)
-4. Bandit Hyperparameters – per-tenant tuning of α, expansion threshold, k_adj.
-5. Connector Hardening & Security – real pgvector impl, retries, rate limiting, audit retention, VPC guidelines.
-6. Benchmark & Uplift – harness, uplift vs vector-only, CI guard on edge overlap & uplift thresholds.
-7. Docs & Dashboard – RECEIPTS.md, live receipt viewer / Postman collection; pricing switches.
-
----
-
-## Metrics (Current + Planned)
-(Condensed – full definitions & interpretation live in `docs/OPERATIONS.md`.)
-Current:
-- query_latency_ms, graph_build_ms, solve_ms, rank_ms
-- query_total{fallback,easy_gate,coh_gate}
-- cg_iterations_bucket
-- redundancy histogram
-- mmr_applied_total
-- max_residual gauge
-- deltaH_total histogram
-- gate_easy_total, gate_low_impact_total, gate_fallback_total
-- receipt_completeness_ratio gauge
-- adaptive_feedback_total{positive}
-- adaptive_suggested_alpha gauge
-- adaptive_events_buffer_size gauge
-
-Planned:
-- adaptive_updates_total{outcome}
-- bandit_arm_selected_total{arm}
-- fallback_reason labeled counter (may reuse existing with label expansion)
- - learned_edge_strength histogram
- - adaptive_applied_alpha_total (count times system auto-applies suggestion)
-
----
-
-## Adaptive Loop (Persistence, Auto-Apply & Bandit)
-(See `docs/ADAPTIVE.md` for full algorithm, state schema, and precedence.)
-When `ENABLE_ADAPTIVE=true` each `/query` receives a `query_id` caching its `(deltaH_total, redundancy)`. `/feedback` referencing that ID updates an in-memory ring buffer (≤200) and recomputes a correlation between coherence uplift and positive feedback (accept OR any click) every 5 events after a 15‑event warmup, yielding a `suggested_alpha` in [0.02, 0.5].
-
-### Persistence
-State (events, suggested_alpha, bandit arm stats) is snapshotted atomically to `adaptive_state.json` (override with `ADAPTIVE_STATE_PATH`) on feedback and shutdown, and reloaded at startup for continuity.
-
-### Automatic Application
-Enable `ENABLE_ADAPTIVE_APPLY=true` to automatically substitute `suggested_alpha` for the manual `alpha_deltaH` override in the ranking blend. Diagnostics expose:
-- `suggested_alpha`
-- `applied_alpha`
-- `alpha_source` = `manual` | `suggested` | `bandit`
-Precedence: suggested > bandit > manual.
-
-### Bandit Hyperparameter Exploration
-Set `ENABLE_BANDIT=true` to activate a UCB1 multi-armed bandit over alpha arms `[0.05, 0.1, 0.15, 0.2, 0.25, 0.3]`. The bandit ensures cold-start exploration (one pull per arm) then balances exploitation via classical UCB score. Reward = 1 if feedback included acceptance or any click, else 0. Arm stats persist with adaptive state. Average per-arm reward surfaces via metrics.
-
-### Metrics Added
-- `conscious_adaptive_feedback_total{positive}`
-- `conscious_adaptive_suggested_alpha`
-- `conscious_adaptive_events_buffer_size`
-- `conscious_bandit_arm_select_total{alpha}`
-- `conscious_bandit_arm_avg_reward{alpha}`
-- `conscious_fallback_reason_total{reason}` (granular fallback attribution)
-
-### Audit Log Signing
-If `AUDIT_HMAC_KEY` is set, each JSONL audit entry gains `signature` (hex SHA-256 HMAC over sorted JSON sans signature) enabling integrity verification. Absent the key, logging remains unchanged.
-
----
-
-## Pricing & Justification (Summary)
-ConsciousDB pricing is a transparent value-capture model (see `docs/PRICING_MODEL.md`). We target ~35% (band 25–45%) of empirically measured customer savings across three channels:
-
-- Token Savings – fewer follow-up LLM calls and pruned context.
-- Time Savings – reduced human escalation / analyst minutes.
-- Reranker Substitution – avoided spend vs. external rerank APIs (if previously used).
-
-Public plan anchors (illustrative): Free (10K), Developer ($79 / 50K), Pro ($499 / 500K), Team ($999 / 1M), Scale ($1,499 / 2M), Enterprise (volume $0.0008–$0.0012/query). Marginal overage prices remain ROI-positive and scale down per‑1K as volume grows. A data dictionary and full sensitivity sweep live in `PRICING_RESEARCH_AND_SIMULATIONS.md` (CSV-backed).
-
-Governance: quarterly capture band review (or sooner if LLM token pricing shifts >20%). If realized value capture drifts above 45%, we offer credits / reserved discounts; if below 25%, we may adjust overage for sustainability.
-
-Why this matters: customers can audit the economics, avoiding opaque, lock-in style per-vector or storage fees—pricing tracks delivered coherence & retrieval uplift, not mere data volume.
-
----
-
-## Further Documentation
-| Topic | Doc |
-|-------|-----|
-| Full API schema & examples | `docs/API.md` |
-| Explainability receipt spec | `docs/RECEIPTS.md` |
-| Configuration matrix & precedence | `docs/CONFIGURATION.md` |
-| Operations, metrics & SLO runbook | `docs/OPERATIONS.md` |
-| Adaptive + bandit deep dive | `docs/ADAPTIVE.md` |
-| Architecture & extensibility | `docs/ARCHITECTURE.md` |
-| Security threat model & controls | `docs/SECURITY.md` |
-| Bench & uplift methodology | `docs/BENCHMARKS.md` |
-| Troubleshooting scenarios | `docs/TROUBLESHOOTING.md` |
-| Simulation findings summary | `docs/SIMULATIONS.md` |
-
----
-
-## Live Demo & Sandbox
-
-You can spin up an interactive demo that surfaces the full **coherence receipt** without writing code.
-
-### 1. Streamlit (local fastest)
+## 🔌 Connectors (BYOVDB)
 ```bash
-pip install -e .[dev,demo,embedders-sentencetransformers]
-$env:USE_MOCK = 'true'      # deterministic synthetic dataset
-uvicorn api.main:app --port 8080 --reload  # in one terminal
+# pgvector
+$env:CONNECTOR='pgvector'
+$env:PG_DSN='postgresql://user:pass@host:5432/db'
 
-# In a second terminal
-streamlit run demo/streamlit_app.py
+# Pinecone
+$env:CONNECTOR='pinecone'
+$env:PINECONE_API_KEY='...'
+$env:PINECONE_INDEX='my-index'
+
+# Chroma
+$env:CONNECTOR='chroma'
+$env:CHROMA_HOST='http://localhost:8000'
+$env:CHROMA_COLLECTION='docs'
 ```
-Set `CONSCIOUSDB_API` to point at a remote deployment if not local.
+Embedders: `sentence_transformer` | `openai` | `vertex`. Configure via env (see `docs/CONFIGURATION.md`).
 
-### 2. Cloud Run Sandbox
-Deploy a public (rate-limited) mock-backed endpoint for investors / prospects:
-```bash
-./ops/cloudrun_deploy.sh consciousdb-sandbox us-central1
-# After deploy, capture the HTTPS URL and export:
-export CONSCIOUSDB_API="https://<cloud-run-url>"
-streamlit run demo/streamlit_app.py
-```
-Recommended hardening before sharing externally:
-- Set `API_KEYS` and distribute a single evaluation key.
-- Configure Cloud Armor / request quotas if exposure expected.
-- Periodically rotate the evaluation key; disable write paths if you later add ingestion.
+## ✅ When to Use
+| Scenario | Benefit |
+|----------|---------|
+| RAG answer quality plateaued | Structure coherence signal beyond raw cosine |
+| Need explainability / audit | Deterministic receipt; per-item decomposition |
+| Avoid model fleet creep | No training / no extra neural runtime |
+| Cost pressure | Substitute paid reranker API; fewer follow-up LLM calls |
 
-### 3. Colab Notebook (shareable)
-Create a new Colab and run:
-```python
-!pip install consciousdb-sidecar[embedders-sentencetransformers]
-import requests, json
-API="https://<cloud-run-url>"
-resp = requests.post(f"{API}/query", json={"query":"vector governance controls","k":6,"m":400})
-print(json.dumps(resp.json()["diagnostics"], indent=2))
-```
-Enhance with: bar chart of per-item coherence drops, redundancy vs ΔH scatter, iterative residual trace (if you expose it later).
+## ⚖️ ConsciousDB vs Rerankers (Condensed)
+| Aspect | Neural Reranker | ConsciousDB |
+|--------|-----------------|-------------|
+| Extra model hosting | Yes | No |
+| Training / finetune | Required | None |
+| Interpretability | Low | High (receipt) |
+| Drift Surface | Weights drift | None (no weights) |
+| Latency Source | Model inference | Small SPD solve |
+| Audit Trail | Add-on | Built-in |
 
-### Receipt Exploration Ideas
-- Compare `align` vs `baseline_align` uplift distribution.
-- Visualize top-k neighbor graph (weights from `neighbors`).
-- Monitor solver efficiency: `coh_drop_total / solve_ms`.
+## 📈 Benchmarks & Metrics
+Benchmark harness + methodology: `docs/BENCHMARKS.md`.  
+Operational metrics & SLOs: `docs/OPERATIONS.md`.
 
-### Next After Demo
-1. Benchmark report (ΔH vs vanilla retrieval quality on a known eval set).
-2. Early design partner case study (before/after search quality & cost metrics).
-3. Sales deck section embedding a GIF of the Streamlit demo (narrated receipt walkthrough).
+## 🔄 Adaptive (Optional)
+Feedback-driven alpha suggestion & bandit exploration are *opt‑in*; details in `docs/ADAPTIVE.md`.
 
----
+## 📚 More Documentation
+| Topic | Where |
+|-------|-------|
+| API & Schemas | `docs/API.md` |
+| Receipts Spec | `docs/RECEIPTS.md` |
+| Configuration Matrix | `docs/CONFIGURATION.md` |
+| Architecture | `docs/ARCHITECTURE.md` |
+| Security Model | `docs/SECURITY.md` |
+| Pricing Rationale | `docs/PRICING_MODEL.md` |
+| Adaptive Loop | `docs/ADAPTIVE.md` |
+| Benchmarks | `docs/BENCHMARKS.md` |
 
----
+## 🛠 Contributing
+Small, tested PRs welcome. Preserve backward compatibility of receipt fields; add new diagnostics additively. See `CONTRIBUTING.md`.
 
-## SLO Guardrails
-- P95 end-to-end latency budget target: ≤ 400 ms for K ≤ 8.
-- Iteration SLO: warn if max CG iterations > 12.
-- Residual SLO: warn if residual > 2× tolerance.
-- Fallback rate target: < 5% (excluding forced tests).
+## 🔐 License
+Business Source License 1.1 → converts to Apache 2.0 on **2028‑10‑05**. Evaluation & internal non‑prod use are free; commercial prod use requires a commercial grant until the change date. See `LICENSE` + `docs/LICENSING.md`.
 
----
-
-## Security / Enterprise Posture
-- API key auth (header, constant-time compare) – present.
-- Planned: per-tenant rate limiting, audit log stream (JSONL, redactable), private networking guidance, credential rotation hook, optional HMAC signing.
-- No raw customer corpus persisted; optional adaptive state stores only hashed IDs & edge weights.
-
----
-
-## Contributing
-Issues & PRs welcome. Keep changes small & covered by tests. Add structured log fields instead of ad-hoc prints. Follow existing style for diagnostics evolution (additive, backwards-compatible).
-
----
-
-## License
-Business Source License 1.1 (BSL) with automatic conversion to Apache-2.0 on **2028-10-05**. See `LICENSE` and `docs/LICENSING.md` for details, allowed use cases, and rationale. Evaluation, research, and internal non-production use are free; commercial production use requires a commercial license until the change date.
-
-> Investor line: “ConsciousDB is the model-free coherence layer for AI retrieval. Instead of adding another neural network, it treats your vector database as the model itself—applying physics-based convex optimization (ΔH) to make search auditable, adaptive, and transparent. No training, no drift, no black box—just math on your existing vectors.”
+> Elevator: *ConsciousDB turns your existing vector database into the model—an explainable, structure‑aware ranking layer with auditable energy receipts instead of another opaque reranker.*
