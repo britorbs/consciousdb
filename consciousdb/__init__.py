@@ -9,3 +9,6 @@ Future (deferred):
 - Caching / persistence
 """
 from .client import ConsciousClient, QueryResult, RankedItem  # noqa: F401
+from .config import Config  # noqa: F401
+
+__all__ = ["ConsciousClient", "QueryResult", "RankedItem", "Config"]

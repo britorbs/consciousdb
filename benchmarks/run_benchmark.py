@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Benchmark runner comparing vanilla cosine vs ConsciousDB coherence ranking.
 
 Usage (synthetic quick run):
@@ -11,6 +9,8 @@ For real datasets provide --dataset-root pointing to a folder with
 queries.jsonl, qrels.jsonl and ensure the sidecar is running on an API
 URL you pass via --api.
 """
+
+from __future__ import annotations
 
 import argparse
 import json
@@ -35,15 +35,15 @@ class MethodResult:
     ndcgs: list[float]
     mrrs: list[float]
     latencies_ms: list[float]
-    deltaH: list[float]
+    delta_h: list[float]
 
     def summary(self, k: int) -> dict:
         return {
             "method": self.name,
-            "nDCG@%d" % k: round(aggregate_metric(self.ndcgs), 4),
-            "MRR@%d" % k: round(aggregate_metric(self.mrrs), 4),
+            f"nDCG@{k}": round(aggregate_metric(self.ndcgs), 4),
+            f"MRR@{k}": round(aggregate_metric(self.mrrs), 4),
             "P95_latency_ms": round(percentile(self.latencies_ms, 95), 2),
-            "avg_deltaH": round(aggregate_metric(self.deltaH), 4),
+            "avg_deltaH": round(aggregate_metric(self.delta_h), 4),
             "explainability": "receipt" if self.name.startswith("ConsciousDB") else "none",
         }
 
@@ -87,7 +87,7 @@ def run(args: argparse.Namespace):
         baseline.latencies_ms.append((time.perf_counter() - t0) * 1000.0)
         baseline.ndcgs.append(ndcg_at_k(pred_cos, b.gold, args.k))
         baseline.mrrs.append(mrr_at_k(pred_cos, b.gold, args.k))
-        baseline.deltaH.append(0.0)
+        baseline.delta_h.append(0.0)
 
         # ConsciousDB (call API)
         payload = {
@@ -116,7 +116,7 @@ def run(args: argparse.Namespace):
         coh.latencies_ms.append(elapsed)
         coh.ndcgs.append(ndcg_at_k(returned_ids, b.gold, args.k))
         coh.mrrs.append(mrr_at_k(returned_ids, b.gold, args.k))
-        coh.deltaH.append(float(jd.get("diagnostics", {}).get("deltaH_total", 0.0)))
+        coh.delta_h.append(float(jd.get("diagnostics", {}).get("deltaH_total", 0.0)))
 
         # ConsciousDB + forced MMR
         payload["overrides"]["use_mmr"] = True
@@ -131,7 +131,7 @@ def run(args: argparse.Namespace):
         coh_mmr.latencies_ms.append(elapsed2)
         coh_mmr.ndcgs.append(ndcg_at_k(returned_ids2, b.gold, args.k))
         coh_mmr.mrrs.append(mrr_at_k(returned_ids2, b.gold, args.k))
-        coh_mmr.deltaH.append(float(jd2.get("diagnostics", {}).get("deltaH_total", 0.0)))
+        coh_mmr.delta_h.append(float(jd2.get("diagnostics", {}).get("deltaH_total", 0.0)))
 
     methods = [baseline, coh, coh_mmr]
     # Summaries
@@ -156,13 +156,25 @@ def run(args: argparse.Namespace):
         Path(args.json).write_text(json.dumps(report, indent=2), encoding="utf-8")
     if args.output:
         lines = ["# Benchmark Results", "", f"Queries: {len(batches)}  |  k={args.k}  m={args.m}", ""]
-        header = f"| Method | nDCG@{args.k} | MRR@{args.k} | P95 Lat (ms) | Avg ΔH | Explainability | nDCG Uplift % | MRR Uplift % |"
+        header = (
+            f"| Method | nDCG@{args.k} | MRR@{args.k} | P95 Lat (ms) | Avg ΔH | Explainability | "
+            "nDCG Uplift % | MRR Uplift % |"
+        )
         lines.append(header)
         lines.append("|--------|---------|-------|-------------|--------|---------------|---------------|--------------|")
         for s in summaries:
-            lines.append(
-                f"| {s['method']} | {s[f'nDCG@{args.k}']:.4f} | {s[f'MRR@{args.k}']:.4f} | {s['P95_latency_ms']:.1f} | {s['avg_deltaH']:.4f} | {s['explainability']} | {s.get('nDCG_uplift_pct','-') if s['method']!='Cosine' else '-'} | {s.get('MRR_uplift_pct','-') if s['method']!='Cosine' else '-'} |"
+            ndcg_val = s[f"nDCG@{args.k}"]
+            mrr_val = s[f"MRR@{args.k}"]
+            p95 = s["P95_latency_ms"]
+            avg_dh = s["avg_deltaH"]
+            expl = s["explainability"]
+            ndcg_u = s.get("nDCG_uplift_pct", "-") if s["method"] != "Cosine" else "-"
+            mrr_u = s.get("MRR_uplift_pct", "-") if s["method"] != "Cosine" else "-"
+            line = (
+                f"| {s['method']} | {ndcg_val:.4f} | {mrr_val:.4f} | {p95:.1f} | "
+                f"{avg_dh:.4f} | {expl} | {ndcg_u} | {mrr_u} |"
             )
+            lines.append(line)
         Path(args.output).write_text("\n".join(lines) + "\n", encoding="utf-8")
         print("Written", args.output)
 

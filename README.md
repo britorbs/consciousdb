@@ -2,7 +2,7 @@
   <img src="docs/Wordmark%20Logo%20for%20ConsciousDB.svg" alt="ConsciousDB Wordmark" width="420" />
 </p>
 
-# ConsciousDB – Your Vector Database *Is* the Model
+# ConsciousDB – Your Vector Database *Is* the Model (formerly "consciousdb-sidecar")
 
 <!-- Badges -->
 ![CI](https://img.shields.io/github/actions/workflow/status/Maverick0351a/consciousdb/test.yml?branch=main&label=CI)
@@ -13,7 +13,24 @@
 
 > Elevator (non‑technical): **ConsciousDB makes vector search explainable. See exactly *why* results rank—without adding another AI model.**
 
-## 🚩 The Problem
+## � Install
+Renamed package: publish / install as `consciousdb` (the previous `consciousdb-sidecar` name is deprecated).
+
+SDK‑only (lean: numpy, scipy, pydantic):
+```bash
+pip install consciousdb
+```
+With optional legacy HTTP server + metrics layer:
+```bash
+pip install "consciousdb[server]"
+```
+Add connectors / embedders as needed, e.g.:
+```bash
+pip install "consciousdb[server,connectors-pgvector,embedders-sentence]"
+```
+Why slim? The default install should not pull a web server if you just want an in‑process ranking + receipt layer.
+
+## �🚩 The Problem
 Vector search gives you similarity – but not *understanding*. Teams struggle to answer:
 - *Why* did these items outrank others?
 - *How* do the results relate to each other (support / redundancy / gaps)?
@@ -28,7 +45,7 @@ Instead of inserting a new model, each query induces a tiny, ephemeral k‑NN gr
 |----------|------------------|------------------|
 | Better ordering | Add / fine‑tune model | Solve energy on existing vectors |
 | Explanation | Post‑hoc approximations | Built‑in per‑item ΔH terms |
-| Low ops overhead | Maintain model infra | Stateless CPU sidecar |
+| Low ops overhead | Maintain model infra | Lightweight CPU solve layer |
 | Stability | Weight drift & retrains | No learned weights, fresh graph per query |
 | Auditability | Sparse logs | Structured receipt JSON |
 
@@ -57,11 +74,11 @@ Instead of inserting a new model, each query induces a tiny, ephemeral k‑NN gr
 
 **ConsciousDB:** Light, explainable, works with what you already have.
 
-## ✨ Quickstart (Local Mock)
+## ✨ Quickstart (Local Mock via Server Extra)
 ```bash
 python -m venv .venv
 . ./.venv/Scripts/Activate.ps1   # PowerShell
-pip install -r requirements.txt
+pip install "consciousdb[server]"
 $env:USE_MOCK='true'
 uvicorn api.main:app --port 8080 --reload
 ```
@@ -73,7 +90,7 @@ curl -s -X POST http://localhost:8080/query \
 ```
 Full schema: see `docs/API.md` & `docs/RECEIPTS.md`.
 
-## ⚡ See It Work (60 Seconds)
+## ⚡ See It Work (60 Seconds) – Server Path
 Requires Docker + docker compose plugin.
 ```bash
 git clone https://github.com/Maverick0351a/consciousdb
@@ -128,6 +145,16 @@ flowchart LR
 }
 ```
 See full evolution in `docs/RECEIPTS.md`.
+
+## 🧠 Pure SDK Usage (No HTTP Server)
+```python
+from consciousdb import ConsciousClient
+
+client = ConsciousClient()
+res = client.query("vector governance controls", k=6, m=200)
+print(res.deltaH_total, res.items[0].id)
+```
+For custom connectors / embedders supply them in the constructor (see examples to be added).
 
 ## 🔌 Connectors (BYOVDB)
 ```bash

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Dataset loader stubs for benchmarking.
 
 Real MS MARCO / Natural Questions integration requires downloading the
@@ -13,6 +11,8 @@ Expected JSONL schema examples:
 
 Synthetic loader creates a small random embedding-backed corpus for rapid smoke.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
@@ -84,5 +84,10 @@ def synthetic_dataset(n_queries: int = 25, dim: int = 32) -> tuple[list[Benchmar
         qv /= (np.linalg.norm(qv) + 1e-12)
         sims = corpus @ qv
         top = np.argsort(-sims)[:3]
-        batches.append(BenchmarkBatch(query=Query(id=f"q{qi}", text=f"synthetic query {qi}"), gold=[ids[t] for t in top]))
+        batches.append(
+            BenchmarkBatch(
+                query=Query(id=f"q{qi}", text=f"synthetic query {qi}"),
+                gold=[ids[t] for t in top],
+            )
+        )
     return batches, corpus, ids

@@ -1,13 +1,14 @@
-from __future__ import annotations
-
 """Smoke test for the ConsciousClient synchronous SDK facade.
 
 Ensures a minimal end-to-end flow runs without the FastAPI server.
-We stub a connector and embedder so the test is deterministic and fast.
 """
+
+from __future__ import annotations
+
 import numpy as np
 
 from consciousdb import ConsciousClient
+from consciousdb import client as client_mod  # type: ignore
 
 
 class StubConnector:
@@ -40,9 +41,7 @@ class StubEmbedder:
         return v
 
 
-# Provide a shim solve_query that matches expected import in client
-# If engine.solve.solve_query exists it will override this test module patching approach; if not, we monkeypatch.
-from consciousdb import client as client_mod  # type: ignore
+# Provide a shim solve_query matching expected import; if real one exists it overrides this.
 
 
 def _fake_solve_query(query: str, k: int, m: int, connector, embedder, overrides):  # noqa: D401
@@ -50,23 +49,21 @@ def _fake_solve_query(query: str, k: int, m: int, connector, embedder, overrides
     top = connector.top_m(q_vec, m)
     items = []
     for vid, score, _v in top[:k]:
-        items.append({
-            "id": vid,
-            "score": score,
-            "align": score,
-            "baseline_align": score,
-            "energy_terms": {"coherence_drop": 0.0},
-            "neighbors": []
-        })
-    return {
-        "items": items,
-        "diagnostics": {"deltaH_total": 0.0},
-        "timings_ms": {"solve": 1.0}
-    }
+        items.append(
+            {
+                "id": vid,
+                "score": score,
+                "align": score,
+                "baseline_align": score,
+                "energy_terms": {"coherence_drop": 0.0},
+                "neighbors": [],
+            }
+        )
+    return {"items": items, "diagnostics": {"deltaH_total": 0.0}, "timings_ms": {"solve": 1.0}}
 
 
 # Monkeypatch if needed
-if getattr(client_mod, 'solve_query', None) is None:
+if getattr(client_mod, "solve_query", None) is None:
     client_mod.solve_query = _fake_solve_query  # type: ignore
 
 

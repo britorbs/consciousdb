@@ -143,7 +143,19 @@ async def lifespan(app: FastAPI):
             LOG.warning("adaptive_state_save_failed", extra={"error": str(e)})
 
 
-app = FastAPI(title="ConsciousDB Sidecar", version="v2.0.0", lifespan=lifespan)
+app = FastAPI(title="ConsciousDB Server (deprecated wrapper)", version="v2.0.0", lifespan=lifespan)
+
+# Deprecation notice: The FastAPI server is now an optional convenience layer.
+# Prefer the in-process SDK (ConsciousClient + Config) for new integrations.
+# This banner is surfaced on startup once.
+_BASE_LOG.warning(
+    "server_deprecated",
+    extra={
+        # Avoid reserved LogRecord attribute name 'message'; use 'detail' instead.
+        "detail": "FastAPI sidecar is deprecated; use consciousdb.ConsciousClient (pip install consciousdb)",
+        "action": "Plan migration to SDK; see upcoming MIGRATION.md",
+    },
+)
 
 
 @app.middleware("http")
@@ -370,7 +382,7 @@ def query(req: QueryRequest):
     N, d = X_S.shape
     A_S = knn_adjacency(X_S, k=SET.knn_k, mutual=SET.knn_mutual)
     # Raw (unnormalized) degrees for true degree-normalized coherence attribution
-    deg_full = np.asarray(A_S.sum(axis=1)).ravel().astype(np.float64)
+    # Degree vector retained previously for normalized attribution; unused after Phase 3 cleanup.
     # Conditional 1-hop expansion for context
     used_expand = False
     S_idx = np.arange(N, dtype=int)
@@ -438,8 +450,6 @@ def query(req: QueryRequest):
         lambda_g,
         lambda_c,
         0.0,  # do not scale anchor inside helper; we'll compute separately with lambda_q
-        normalized=SET.use_normalized_coh,
-        deg=deg_full[idx_S],
     )
     coh_s, anc_s, grd_s, _ = per_node_components(
         Qs,
@@ -450,8 +460,6 @@ def query(req: QueryRequest):
         lambda_g,
         lambda_c,
         lambda_q,
-        normalized=SET.use_normalized_coh,
-        deg=deg_full[idx_S],
     )
     # Recompute baseline anchor energy (with lambda_q) for decomposition:
     diff_b_anchor = Qb - y[None, :]

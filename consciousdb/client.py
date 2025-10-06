@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Synchronous client facade for ConsciousDB.
 
 This wraps existing solver / ranking logic so users can embed optimization locally
@@ -9,13 +7,14 @@ endpoint shape (minus transport wrapper).
 Design Notes:
 - Keep dependencies minimal; avoid importing FastAPI or server modules.
 - Connectors and embedders are injected or can be looked up via registries (future enhancement).
-- Configuration is currently via method parameters / overrides; a Config object will replace this in Phase 2.
+- Configuration precedence: per-call overrides > constructor overrides > config.to_overrides().
 """
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
-import time
 
-import numpy as np
+from __future__ import annotations
+
+import time
+from dataclasses import dataclass
+from typing import Any
 
 # Reuse existing engine components.
 # Assumptions: engine.solve exposes a function `solve` or similar entrypoint.
@@ -23,26 +22,26 @@ import numpy as np
 try:  # soft import pattern to avoid circular server deps
     from engine.solve import solve_query  # type: ignore
 except Exception:  # pragma: no cover - fallback / placeholder
-    solve_query = None  # type: ignore
+    solve_query = None
 
 
 @dataclass
 class RankedItem:
     id: str
     score: float
-    align: Optional[float] = None
-    baseline_align: Optional[float] = None
-    energy_terms: Optional[Dict[str, float]] = None
-    neighbors: Optional[List[Dict[str, Any]]] = None
+    align: float | None = None
+    baseline_align: float | None = None
+    energy_terms: dict[str, float] | None = None
+    neighbors: list[dict[str, Any]] | None = None
 
 
 @dataclass
 class QueryResult:
-    items: List[RankedItem]
-    diagnostics: Dict[str, Any]
-    timings_ms: Dict[str, float]
+    items: list[RankedItem]
+    diagnostics: dict[str, Any]
+    timings_ms: dict[str, float]
 
-    def to_dict(self) -> Dict[str, Any]:  # convenience for serialization
+    def to_dict(self) -> dict[str, Any]:  # convenience for serialization
         return {
             "items": [item.__dict__ for item in self.items],
             "diagnostics": self.diagnostics,
@@ -63,13 +62,22 @@ class ConsciousClient:
         Default solver parameter overrides (alpha, gaps, iteration caps, etc.).
     """
 
-    def __init__(self, connector: Any, embedder: Any, solver_overrides: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self,
+        connector: Any,
+        embedder: Any,
+        solver_overrides: dict[str, Any] | None = None,
+        config: Any | None = None,
+    ):
         self.connector = connector
         self.embedder = embedder
-        self.solver_overrides = solver_overrides or {}
+        self._config = config
+        base_overrides = config.to_overrides() if config is not None else {}
+        self.solver_overrides = {**base_overrides, **(solver_overrides or {})}
         if solve_query is None:
             raise ImportError(
-                "engine.solve.solve_query not importable. Ensure engine/solve.py exposes solve_query(query_vec, k, m, connector, embedder, overrides)."
+                "engine.solve.solve_query not importable; expected signature: "
+                "solve_query(query, k, m, connector, embedder, overrides)."
             )
 
     # Minimal contract for the solver (documenting expectation for future refactor):
@@ -80,7 +88,7 @@ class ConsciousClient:
         query: str,
         k: int,
         m: int,
-        overrides: Optional[Dict[str, Any]] = None,
+        overrides: dict[str, Any] | None = None,
         include_receipt: bool = True,
     ) -> QueryResult:
         """Execute a ranked retrieval with coherence optimization.
@@ -108,11 +116,11 @@ class ConsciousClient:
         t1 = time.time()
         # Expected raw format (align with existing API output):
         # {
-        #   "items": [{"id": str, "score": float, "align": float, "baseline_align": float, "energy_terms": {...}, "neighbors": [...]}, ...],
+        #   "items": [ { id, score, align, baseline_align, energy_terms, neighbors }, ... ],
         #   "diagnostics": {...},
         #   "timings_ms": {...}
         # }
-        items_out: List[RankedItem] = []
+        items_out: list[RankedItem] = []
         for it in raw.get("items", []):
             items_out.append(
                 RankedItem(
@@ -133,10 +141,10 @@ class ConsciousClient:
 
     def batch_query(
         self,
-        queries: List[str],
+        queries: list[str],
         k: int,
         m: int,
-        overrides: Optional[Dict[str, Any]] = None,
-    ) -> List[QueryResult]:
+        overrides: dict[str, Any] | None = None,
+    ) -> list[QueryResult]:
         """Naive batch convenience wrapper (sequential for now)."""
         return [self.query(q, k=k, m=m, overrides=overrides) for q in queries]

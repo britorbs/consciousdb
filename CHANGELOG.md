@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+### Added
+- SDK Python package `consciousdb` exposing `ConsciousClient` (initial synchronous facade).
+- Optional `server` extra (`pip install consciousdb[server]`) bundling FastAPI, Uvicorn, Prometheus, httpx, python-dotenv.
+### Changed
+- Project distribution renamed from `consciousdb-sidecar` to `consciousdb` (legacy name kept temporarily as console script alias `consciousdb-sidecar`).
+- Slimmed base install to algorithmic core only (removed FastAPI / Uvicorn / Prometheus from mandatory deps).
+### Deprecated
+- Legacy console script name `consciousdb-sidecar` (alias) scheduled for removal in 3.2.0.
+- Bundled FastAPI server wrapper deprecated; extraction/removal phased (see timeline below).
+### Deprecation Timeline (Planned)
+| Version | Action |
+|---------|--------|
+| 3.1.0 | Emit runtime warning when `consciousdb-sidecar` alias used |
+| 3.2.0 | Remove `consciousdb-sidecar` console script alias |
+| 3.3.0 | Elevate server startup warning to ERROR + add import shim notice |
+| 3.4.x | Possible extraction of server into separate `consciousdb-server` package if community demand persists |
+| 4.0.0 | Remove bundled FastAPI server code from core distribution |
+### Removed
+- Implicit server dependency footprint from default installation path.
+### Documentation
+- README updated with separate SDK vs Server install instructions and rationale for slim core.
+
 ## [3.0.0] - 2025-10-05
 ### Added
 - Normalized Laplacian per-node coherence attribution (legacy path removed; now canonical).

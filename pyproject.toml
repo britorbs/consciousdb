@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "consciousdb-sidecar"
+name = "consciousdb"
 version = "3.0.0"
-description = "ConsciousDB Sidecar – model-free coherence optimization layer for vector retrieval"
+description = "ConsciousDB – model-free coherence optimization layer for vector retrieval (formerly consciousdb-sidecar)"
 readme = "README.md"
 # Business Source License 1.1 is not an SPDX identifier; point to LICENSE file.
 license = { file = "LICENSE" }
@@ -23,17 +23,15 @@ classifiers = [
 	"Development Status :: 3 - Alpha"
 ]
 dependencies = [
-	"fastapi==0.115.0",
-	"uvicorn==0.30.6",
 	"pydantic==2.9.2",
 	"numpy==1.26.4",
-	"scipy==1.11.4",
-	"httpx==0.27.2",
-	"python-dotenv==1.0.1",
-	"prometheus-client==0.20.0"
+	"scipy==1.11.4"
 ]
 
 [project.scripts]
+# Primary (preferred) server launch script
+consciousdb-server = "api.cli:main"
+# Deprecated alias retained temporarily for backwards compatibility; will be removed in a future release.
 consciousdb-sidecar = "api.cli:main"
 
 [tool.setuptools]
@@ -44,10 +42,18 @@ packages = [
 	"embedders",
 	"engine",
 	"graph",
-	"infra"
+	"infra",
+	"consciousdb"
 ]
 
 [project.optional-dependencies]
+server = [
+	"fastapi==0.115.0",
+	"uvicorn==0.30.6",
+	"prometheus-client==0.20.0",
+	"httpx==0.27.2",
+	"python-dotenv==1.0.1"
+]
 connectors-pgvector = ["psycopg2-binary==2.9.9"]
 connectors-pinecone = ["pinecone-client==3.2.2"]
 connectors-chroma = ["chromadb==0.5.4"]

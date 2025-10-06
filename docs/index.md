@@ -5,7 +5,7 @@ layout: default
 
 # ConsciousDB Documentation
 
-ConsciousDB is a physics-inspired, model-free reranking sidecar for retrieval augmented generation (RAG). It treats your vector database as the model, applying a convex coherence optimization that yields auditable ΔH energy receipts.
+ConsciousDB is a physics-inspired, model-free coherence optimization + ranking layer for retrieval augmented generation (RAG). It treats your vector database as the model, applying a convex coherence optimization that yields auditable ΔH energy receipts. Formerly packaged as a network "sidecar", it is now offered primarily as a lightweight Python SDK.
 
 ## Quick Links
 - API Reference: [API.md](API.md)
@@ -19,11 +19,11 @@ ConsciousDB is a physics-inspired, model-free reranking sidecar for retrieval au
 - Pricing Model: [PRICING_MODEL.md](PRICING_MODEL.md)
 
 ## Getting Started
-1. Install sidecar: `pip install consciousdb-sidecar`
-2. Export connector environment variables (e.g. `CONNECTOR=pgvector` + DSN) or set `USE_MOCK=true` for synthetic mode.
-3. Run: `uvicorn api.main:app --port 8080 --reload`
-4. Query endpoint: `POST /query` with `{ "query": "...", "k": 6, "m": 400 }`.
-5. Inspect returned `diagnostics` & per-item energy terms.
+1. Install SDK: `pip install consciousdb`
+2. (Optional) Install server wrapper: `pip install "consciousdb[server]"`
+3. Create a `ConsciousClient` with your connector + embedder objects.
+4. Call `client.query("your query", k=6, m=400)` and inspect `result.diagnostics` & per-item energy terms.
+5. Use the deprecated HTTP wrapper only if you require transitional REST access.
 
 ## Core Concepts
 | Concept | Summary |

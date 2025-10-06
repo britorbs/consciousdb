@@ -12,10 +12,10 @@ fmt:
 	black .
 
 docker:
-	docker build -t consciousdb-sidecar:dev -f ops/Dockerfile .
+	docker build -t consciousdb:dev -f ops/Dockerfile .
 
 docker-build:
-	docker build -t consciousdb-sidecar:dev -f ops/Dockerfile .
+	docker build -t consciousdb:dev -f ops/Dockerfile .
 
 docker-build-extras:
-	docker build --build-arg OPTIONAL_EXTRAS="$(EXTRAS)" -t consciousdb-sidecar:extras -f ops/Dockerfile .
+	docker build --build-arg OPTIONAL_EXTRAS="$(EXTRAS)" -t consciousdb:extras -f ops/Dockerfile .

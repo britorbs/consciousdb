@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes the runtime data flow, adaptive ranking components, observability, and extensibility points of the ConsciousDB Sidecar.
+This document describes the runtime data flow, adaptive ranking components, observability, and extensibility points of the ConsciousDB engine (formerly distributed as a deployable "sidecar").
 
 ## Request Flow (BYOVDB)
 
@@ -22,7 +22,7 @@ Interface shape:
 - `top_m(y: np.ndarray, m: int) -> List[(id, similarity, maybe_vector)]`
 - `fetch_vectors(ids: List[str]) -> np.ndarray` when vectors absent from recall.
 
-No persistent storage of customer embeddings occurs in the sidecar by default—stateless except transient query scope.
+No persistent storage of customer embeddings occurs by default—stateless except transient query scope.
 
 ## Learning (Baseline Concept)
 
@@ -121,4 +121,4 @@ Adaptive state JSON contains: suggested_alpha, events buffer, bandit arms (means
 
 ## Summary
 
-The sidecar layers deterministic linear-algebra smoothing atop ANN recall, then adaptively tunes the coherence vs. alignment trade-off using lightweight statistics and an optional bandit. Observability (metrics + audit) and gating ensure bounded latency and debuggability while preserving data minimization.
+The engine layers deterministic linear-algebra smoothing atop ANN recall, then adaptively tunes the coherence vs. alignment trade-off using lightweight statistics and an optional bandit. Observability (metrics + audit) and gating ensure bounded latency and debuggability while preserving data minimization.
