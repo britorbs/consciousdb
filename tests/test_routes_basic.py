@@ -1,6 +1,12 @@
-from fastapi.testclient import TestClient
+import pytest
+try:
+    from fastapi.testclient import TestClient  # type: ignore
+except Exception:  # pragma: no cover
+    TestClient = None
 
 from api.main import app
+
+pytestmark = pytest.mark.skipif(TestClient is None, reason="fastapi not installed (server extra missing)")
 
 
 def test_healthz():

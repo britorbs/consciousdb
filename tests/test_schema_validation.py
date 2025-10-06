@@ -1,6 +1,10 @@
 import json
+import pytest
 
-from fastapi.testclient import TestClient
+try:
+    from fastapi.testclient import TestClient  # type: ignore
+except Exception:  # pragma: no cover
+    TestClient = None
 
 from api.main import app
 
@@ -8,6 +12,9 @@ try:
     import jsonschema
 except ImportError:  # pragma: no cover
     jsonschema = None
+
+
+pytestmark = pytest.mark.skipif(TestClient is None, reason="fastapi not installed (server extra missing)")
 
 
 def test_query_response_conforms_to_schema():
