@@ -4,18 +4,24 @@ Modes:
   * Synthetic: fully self-contained random corpus (fast demo).
   * MS MARCO / NQ: uses dataset loader samples (either cached preprocessed
     JSONL or miniature embedded samples). For real evaluation you must ingest
-    the actual corpus into your vector backend; this script's random corpus
-    construction is only a placeholder for quality harness wiring.
+    the actual corpus into your vector backend; the random corpus construction
+    here is only a placeholder for quality harness wiring.
 
 Examples:
-  Synthetic quick run
-      python -m benchmarks.run_benchmark --dataset synthetic --queries 50 --k 10 --m 400 --output bench.md --json bench.json
+  Synthetic quick run::
+      python -m benchmarks.run_benchmark \
+          --dataset synthetic --queries 50 --k 10 --m 400 \
+          --output bench.md --json bench.json
 
-  MS MARCO sample without API (baseline only wiring)
-      python -m benchmarks.run_benchmark --dataset msmarco --queries 20 --k 10 --m 200 --no-api
+  MS MARCO sample without API (baseline only wiring)::
+      python -m benchmarks.run_benchmark \
+          --dataset msmarco --queries 20 --k 10 --m 200 \
+          --no-api
 
-  NQ sample attempting API methods (requires real ingestion)
-      python -m benchmarks.run_benchmark --dataset nq --k 10 --m 400 --api http://localhost:8080
+  NQ sample attempting API methods (requires real ingestion)::
+      python -m benchmarks.run_benchmark \
+          --dataset nq --k 10 --m 400 \
+          --api http://localhost:8080
 """
 
 from __future__ import annotations
@@ -32,19 +38,19 @@ import numpy as np
 import requests
 
 from .datasets import (
-    synthetic_dataset,
+    build_random_corpus_from_gold,
     load_msmarco,
     load_nq,
-    build_random_corpus_from_gold,
+    synthetic_dataset,
 )
 from .metrics import (
     aggregate_metric,
+    ap_at_k,
+    bootstrap_ci,
     mrr_at_k,
     ndcg_at_k,
-    recall_at_k,
-    ap_at_k,
     percentile,
-    bootstrap_ci,
+    recall_at_k,
 )
 
 DEFAULT_API = os.getenv("CONSCIOUSDB_API", "http://localhost:8080")
@@ -132,14 +138,15 @@ def run(args: argparse.Namespace):
     reranker_model = None
     if args.reranker:
         try:  # pragma: no cover - heavy model path not unit tested
-            from sentence_transformers import CrossEncoder  # type: ignore
+            from sentence_transformers import CrossEncoder
 
             model_name = args.reranker_model or "cross-encoder/ms-marco-MiniLM-L-6-v2"
             t_load = time.perf_counter()
             reranker_model = CrossEncoder(model_name, trust_remote_code=True)
             load_ms = (time.perf_counter() - t_load) * 1000.0
             print(f"Loaded reranker model '{model_name}' in {load_ms:.0f} ms")
-            reranker_method = MethodResult(f"Reranker({model_name.split('/')[-1]})", [], [], [], [], [], [])
+            short_name = model_name.split('/')[-1]
+            reranker_method = MethodResult(f"Reranker({short_name})", [], [], [], [], [], [])
         except Exception as e:  # pragma: no cover
             print("Failed to load reranker model (disable with --no-reranker):", e)
             args.reranker = False
@@ -165,7 +172,7 @@ def run(args: argparse.Namespace):
                 t_r0 = time.perf_counter()
                 # Placeholder text: use doc id (real evaluation should pass actual doc text)
                 pairs = [(b.query.text, doc_id) for doc_id in candidate_ids]
-                scores = reranker_model.predict(pairs)  # type: ignore[attr-defined]
+                scores = reranker_model.predict(pairs)
                 order_r = np.argsort(-np.array(scores))[: args.k]
                 pred_rr = [candidate_ids[i] for i in order_r]
                 reranker_method.latencies_ms.append((time.perf_counter() - t_r0) * 1000.0)
@@ -273,7 +280,9 @@ def run(args: argparse.Namespace):
             "",
         ]
         header = (
-            f"| Method | nDCG@{args.k} | MRR@{args.k} | Recall@{args.k} | MAP@{args.k} | P95 Lat (ms) | Avg ΔH | Explainability | nDCG Uplift % | MRR Uplift % | Recall Uplift % | MAP Uplift % |"
+            f"| Method | nDCG@{args.k} | MRR@{args.k} | Recall@{args.k} | MAP@{args.k} | "
+            "P95 Lat (ms) | Avg ΔH | Explainability | "
+            "nDCG Uplift % | MRR Uplift % | Recall Uplift % | MAP Uplift % |"
         )
         lines.append(header)
         lines.append(
@@ -292,7 +301,9 @@ def run(args: argparse.Namespace):
             recall_u = s.get("Recall_uplift_pct", "-") if s["method"] != "Cosine" else "-"
             map_u = s.get("MAP_uplift_pct", "-") if s["method"] != "Cosine" else "-"
             line = (
-                f"| {s['method']} | {ndcg_val:.4f} | {mrr_val:.4f} | {recall_val:.4f} | {map_val:.4f} | {p95:.1f} | {avg_dh:.4f} | {expl} | {ndcg_u} | {mrr_u} | {recall_u} | {map_u} |"
+                f"| {s['method']} | {ndcg_val:.4f} | {mrr_val:.4f} | {recall_val:.4f} | "
+                f"{map_val:.4f} | {p95:.1f} | {avg_dh:.4f} | {expl} | {ndcg_u} | "
+                f"{mrr_u} | {recall_u} | {map_u} |"
             )
             lines.append(line)
         Path(args.output).write_text("\n".join(lines) + "\n", encoding="utf-8")

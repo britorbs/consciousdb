@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Callable, Tuple
+from collections.abc import Callable, Sequence
 
 
 # --------------------- Core Metric Primitives ---------------------
@@ -84,7 +83,7 @@ def bootstrap_ci(
     seed: int | None = None,
     ci: float = 0.95,
     agg: Callable[[list[float]], float] = aggregate_metric,
-) -> Tuple[float, float, float]:
+) -> tuple[float, float, float]:
     """Return (mean, lower, upper) non-parametric bootstrap CI.
 
     Uses simple iid resampling with replacement. If insufficient samples (<2) or
