@@ -13,6 +13,9 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      matrix:
+        envset: [core, server]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,13 +26,15 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install project (editable core + dev + server)
+      - name: Install project (editable)
         run: |
           pip install --upgrade pip
-          # Editable install so coverage maps executed code to repo sources
-          pip install -e .[dev,security,server]
+          if [ "${{ matrix.envset }}" = "server" ]; then
+            pip install -e .[dev,security,server]
+          else
+            pip install -e .[dev,security]
+          fi
           pip install build
-          # Optional: warm caches for ruff/mypy if needed later
 
       - name: Cache mypy
         uses: actions/cache@v4
@@ -52,6 +57,7 @@ jobs:
           PYTHONWARNINGS: ignore::DeprecationWarning:scipy.sparse.linalg
         run: |
           pytest -q --cov=./ --cov-report=xml --cov-report=term --maxfail=1 --cov-fail-under=85
+
       - name: Enforce coverage threshold
         shell: bash
         run: |
@@ -72,19 +78,22 @@ jobs:
           files: coverage.xml
           fail_ci_if_error: true
           verbose: true
+        if: ${{ matrix.envset == 'server' }}
 
       - name: Build wheel
         run: |
-          python -m build --wheel
+            python -m build --wheel
+        if: ${{ matrix.envset == 'server' }}
 
       - name: Security audit (pip-audit)
         run: |
           pip-audit -r requirements.txt || true
+        if: ${{ matrix.envset == 'server' }}
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-xml
+          name: coverage-xml-${{ matrix.envset }}
           path: coverage.xml
           if-no-files-found: warn
 
@@ -94,3 +103,4 @@ jobs:
           name: dist-wheel
           path: dist/*.whl
           if-no-files-found: warn
+        if: ${{ matrix.envset == 'server' }}

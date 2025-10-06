@@ -1,13 +1,8 @@
 import pytest
-
-try:
-    from fastapi.testclient import TestClient  # type: ignore
-except Exception:  # pragma: no cover
-    TestClient = None  # sentinel
-
+from tests._fastapi_optional import TestClient, FASTAPI_AVAILABLE
 from api.main import SET, app
 
-pytestmark = pytest.mark.skipif(TestClient is None, reason="fastapi not installed (server extra missing)")
+pytestmark = pytest.mark.skipif(not FASTAPI_AVAILABLE, reason="fastapi not installed (server extra missing)")
 
 
 def test_adaptive_alpha_suggestion_emerges(monkeypatch):
