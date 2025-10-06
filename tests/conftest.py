@@ -14,7 +14,7 @@ import numpy as np
 import pytest
 
 from consciousdb import Config, ConsciousClient
-from consciousdb import client as client_mod  # type: ignore
+from consciousdb import client as client_mod
 
 ROOT = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 if ROOT not in sys.path:

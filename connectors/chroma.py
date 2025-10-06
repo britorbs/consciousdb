@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -21,8 +22,8 @@ class ChromaConnector(BaseConnector):
 
     def __init__(self, host: str, collection: str, max_retries: int = 3):
         try:
-            import chromadb  # type: ignore
-            from chromadb.config import Settings as ChromaSettings  # type: ignore
+            import chromadb  # runtime import (optional dependency)
+            from chromadb.config import Settings as ChromaSettings
         except Exception as e:  # pragma: no cover - import guard
             raise RuntimeError("chromadb not installed. Install with 'pip install .[connectors-chroma]'") from e
         # Initialize REST client (strip protocol if provided).
@@ -42,7 +43,7 @@ class ChromaConnector(BaseConnector):
             self._collection = self._client.get_or_create_collection(self.collection_name)
         return self._collection
 
-    def _retry(self, op: str, fn: Callable[[], any]):
+    def _retry(self, op: str, fn: Callable[[], Any]):
         delay = 0.25
         for attempt in range(1, self.max_retries + 1):
             try:

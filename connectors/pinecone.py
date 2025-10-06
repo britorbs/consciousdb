@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 
@@ -21,7 +22,7 @@ class PineconeConnector(BaseConnector):
 
     def __init__(self, api_key: str, index_name: str, namespace: str | None = None, max_retries: int = 3):
         try:
-            from pinecone import Pinecone  # type: ignore
+            from pinecone import Pinecone  # runtime import (optional dependency)
         except Exception as e:  # pragma: no cover - import guard
             raise RuntimeError(
                 "pinecone-client not installed. Install with 'pip install .[connectors-pinecone]'"
@@ -43,7 +44,7 @@ class PineconeConnector(BaseConnector):
             self._index = self._client.Index(self.index_name)
         return self._index
 
-    def _retry(self, op: str, fn: Callable[[], any]):
+    def _retry(self, op: str, fn: Callable[[], Any]):
         delay = 0.25
         for attempt in range(1, self.max_retries + 1):
             try:
