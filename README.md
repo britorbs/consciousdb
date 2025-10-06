@@ -11,6 +11,8 @@
 
 > Stop stacking opaque rerankers. ConsciousDB turns the structure already latent in your vectors into an **explainable retrieval intelligence layer** – no training, no drift, full receipts.
 
+> Elevator (non‑technical): **ConsciousDB makes vector search explainable. See exactly *why* results rank—without adding another AI model.**
+
 ## 🚩 The Problem
 Vector search gives you similarity – but not *understanding*. Teams struggle to answer:
 - *Why* did these items outrank others?
@@ -37,6 +39,24 @@ Instead of inserting a new model, each query induces a tiny, ephemeral k‑NN gr
 **Low Latency** – Typical local/mock ~50 ms P95 for k≤8 (CPU).  
 **Bring Your Own Vector DB** – Pinecone, pgvector, Chroma, Vertex AI, in‑memory.
 
+## 📊 Results In Practice *(early internal / synthetic reference)*
+| Metric | Improvement / Figure | Notes |
+|--------|----------------------|-------|
+| nDCG uplift | **~21%** vs raw cosine | Synthetic eval harness (see `docs/BENCHMARKS.md`) |
+| P95 latency | **~50 ms** | Local/mock k≤8, CPU only |
+| Follow-up LLM calls | **~35% fewer** | Higher initial relevance reduces clarifying turns |
+
+*(Real public benchmark numbers will be published as dataset loaders land.)*
+
+## 🤔 Why Not Just...
+| Option | Hidden Cost | Still Lacks |
+|--------|-------------|-------------|
+| Add a neural reranker | Extra model infra, finetuning, drift | Native explanation, per-item energy traces |
+| Build a knowledge graph | Heavy ETL, schema churn, stale edges | On-demand freshness, low ops footprint |
+| Tune / re-embed corpus | Labeling effort, loss of generality | Live structural attribution, audit trail |
+
+**ConsciousDB:** Light, explainable, works with what you already have.
+
 ## ✨ Quickstart (Local Mock)
 ```bash
 python -m venv .venv
@@ -53,24 +73,48 @@ curl -s -X POST http://localhost:8080/query \
 ```
 Full schema: see `docs/API.md` & `docs/RECEIPTS.md`.
 
-## 🧪 High-Level Flow
+## ⚡ See It Work (60 Seconds)
+Requires Docker + docker compose plugin.
+```bash
+git clone https://github.com/Maverick0351a/consciousdb
+cd consciousdb
+docker compose up -d       # launches API + (optionally) demo if compose file present
+sleep 3
+curl -s -X POST http://localhost:8080/query -H "content-type: application/json" \
+  -d '{"query":"vector governance controls","k":6,"m":300}' | jq '.diagnostics.deltaH_total'
+```
+Optional (if demo container configured): open http://localhost:8501
+
+## 🧪 High-Level Flow (Conceptual)
+```
+Query → Vectors → Local Graph → Physics Solve → Explained Rankings (Receipt)
+```
+Minimal mental model:
+1. Pull candidates (M) from your existing vector DB.
+2. Construct ephemeral similarity graph (only these M nodes).
+3. Run a fast energy minimization (convergence in a handful of iterations).
+4. Decompose total uplift (ΔH) into per-item parts.
+5. Rank + return receipt.
+
+<details>
+<summary><strong>Technical Path (click to expand)</strong></summary>
+
 ```mermaid
 flowchart LR
   Q[Query] --> E[Embed]
   E --> R[Recall M]
-  R --> G[Local kNN Graph]
-  G --> S[Energy Solve]
-  S --> A[Per-Item ΔH Attribution]
-  A --> RK[Rank]
-  RK --> RC[Receipt]
+  R --> G[Mutual kNN Graph]
+  G --> S[SPD Solve (CG)]
+  S --> A[ΔH Attribution]
+  A --> RK[Rank + Diversify]
+  RK --> RC[Receipt JSON]
 ```
 
-1. Recall M candidates from your existing DB.  
-2. Build mutual cosine k‑NN subgraph (expand if similarity gap low).  
-3. Solve small SPD system (normalized Laplacian + anchor/ground).  
-4. Attribute conserved ΔH to items (coherence + structural terms).  
-5. Blend coherence uplift & (optionally) structure‑smoothed alignment; diversify if redundancy high.  
-6. Ship the receipt.
+- Solve: Jacobi‑preconditioned CG over normalized Laplacian + anchor/ground diagonals.
+- Attribution: Per-node split (coherence/anchor/ground) sums exactly to `deltaH_total`.
+- Ranking blend: z‑scored coherence uplift + structure‑smoothed alignment (optional MMR when redundancy > threshold).
+
+</details>
 
 ## 🧾 Receipt Snapshot
 ```json
@@ -128,7 +172,23 @@ Operational metrics & SLOs: `docs/OPERATIONS.md`.
 ## 🔄 Adaptive (Optional)
 Feedback-driven alpha suggestion & bandit exploration are *opt‑in*; details in `docs/ADAPTIVE.md`.
 
-## 📚 More Documentation
+---
+
+## 📖 Deep Dive Documentation
+Ready to go deeper? Start here:
+
+| Topic | Where |
+|-------|-------|
+| API & Schemas | `docs/API.md` |
+| Receipts Spec | `docs/RECEIPTS.md` |
+| Configuration Matrix | `docs/CONFIGURATION.md` |
+| Architecture | `docs/ARCHITECTURE.md` |
+| Security Model | `docs/SECURITY.md` |
+| Pricing Rationale | `docs/PRICING_MODEL.md` |
+| Adaptive Loop | `docs/ADAPTIVE.md` |
+| Benchmarks | `docs/BENCHMARKS.md` |
+
+## 📚 More Documentation (Index)
 | Topic | Where |
 |-------|-------|
 | API & Schemas | `docs/API.md` |
