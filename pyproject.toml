@@ -80,6 +80,9 @@ bench = [
 	"numpy>=1.26.4",
 	"tqdm>=4.66.0"
 ]
+reranker = [
+	"sentence-transformers==2.7.0"
+]
 
 [project.urls]
 Homepage = "https://github.com/Maverick0351a/consciousdb"

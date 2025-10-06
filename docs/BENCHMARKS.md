@@ -53,10 +53,6 @@ Behavior:
 
 Full evaluation steps (external, not automated here yet):
 1. Download original datasets (MS MARCO passage, NQ open) under their respective licenses.
-2. Preprocess into JSONL queries + qrels (optionally add `corpus.jsonl`).
-3. Ingest corpus into your vector store (e.g., Pinecone or pgvector) with matching IDs.
-4. Launch the server pointing at that connector.
-5. Run benchmark without `--no-api` to capture ConsciousDB metrics.
 
 ## Report Format
 Markdown table with absolute metrics and uplift percentages, plus a JSON artifact for downstream plotting / dashboards.
@@ -80,23 +76,16 @@ Planned enhancements:
 - Latency decomposition percentiles (embed / ann / build / solve / rank).
 - Cumulative throughput & cost simulation (CPU time vs GPU reranker cost).
 - Comparative reranker baseline (e.g., cross-encoder). *Out-of-scope for open-core; added in premium eval toolkit.*
-
-### Confidence Intervals (Implemented)
 Enable non-parametric bootstrap CIs via:
 
 ```bash
 python -m benchmarks.run_benchmark --dataset synthetic --queries 50 --k 10 --bootstrap --boots 800
-```
 
 Each reported metric will include `_ci` triplets in JSON output: `[mean, lower, upper]` at 95% confidence (configurable via code). Use these intervals to validate that uplift vs baseline is statistically robust (interval excludes 0 when comparing paired differences). A lightweight heuristic is to ensure `nDCG@K_ci[1]` for ConsciousDB exceeds the cosine `nDCG@K` point estimate before locking thresholds into CI gates. For automated regression gating you can later compute paired bootstrap of differences (not yet implemented).
 
 ## Running Benchmarks
 ```bash
 # Install benchmark extras (if defined)
-python -m pip install -e .[bench]
-
-# Synthetic (full comparison, requires running API):
-uvicorn api.main:app --port 8080 --workers 1 &
 python -m benchmarks.run_benchmark --dataset synthetic --queries 50 --k 10 --m 400 --output bench.md --json bench.json
 
 # MS MARCO sample (baseline only wiring):
@@ -152,22 +141,13 @@ Vector-only baseline can be approximated by invoking `/query` with overrides for
 When experimenting with approximate adjacency:
 1. Build exact mutual kNN (k=5) adjacency for sample of queries.
 2. Build approximate adjacency.
-3. Compute overlap = |E_exact ∩ E_approx| / |E_exact|.
 4. Record distribution (median, P10).
-5. If below threshold, tighten approximate parameters or fall back to exact.
 
-## Reporting Template
 ```
 Date: YYYY-MM-DD
 Corpus: <name>
-Queries: <count>
-M: <value>  K: <values tested>
 Alpha: <value or adaptive>
 
-nDCG@5 (vector vs conscious): 0.412 / 0.437 (+6.1%)
-nDCG@10 (vector vs conscious): 0.451 / 0.472 (+4.7%)
-Latency P50/P95 (ms): 82 / 221
-Fallback Rate: 3.2% (forced excluded)
 Easy Gate Rate: 44%
 Edge Overlap (median): 0.31
 Redundancy (mean top-10 pre-MMR): 0.37

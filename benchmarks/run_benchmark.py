@@ -124,20 +124,58 @@ def run(args: argparse.Namespace):
 
     # Baseline: pure cosine (vector-only)
     baseline = MethodResult("Cosine", [], [], [], [], [], [])
+    reranker_method: MethodResult | None = None
     coh = MethodResult("ConsciousDB", [], [], [], [], [], [])
     coh_mmr = MethodResult("ConsciousDB+MMR", [], [], [], [], [], [])
 
+    # Optional reranker model (lazy load)
+    reranker_model = None
+    if args.reranker:
+        try:  # pragma: no cover - heavy model path not unit tested
+            from sentence_transformers import CrossEncoder  # type: ignore
+
+            model_name = args.reranker_model or "cross-encoder/ms-marco-MiniLM-L-6-v2"
+            t_load = time.perf_counter()
+            reranker_model = CrossEncoder(model_name, trust_remote_code=True)
+            load_ms = (time.perf_counter() - t_load) * 1000.0
+            print(f"Loaded reranker model '{model_name}' in {load_ms:.0f} ms")
+            reranker_method = MethodResult(f"Reranker({model_name.split('/')[-1]})", [], [], [], [], [], [])
+        except Exception as e:  # pragma: no cover
+            print("Failed to load reranker model (disable with --no-reranker):", e)
+            args.reranker = False
+
     for b in batches:
         qv = embed_query_local(b.query.text, args.dim)
-        # Baseline
+        # Baseline (vector-only ANN + cosine) retrieving top-m then slicing to k
         t0 = time.perf_counter()
-        pred_cos = cosine_search(corpus, ids, qv, args.k, args.m)
+        sims = corpus @ qv
+        order = np.argsort(-sims)[: args.m]
+        candidate_ids = [ids[i] for i in order]
+        pred_cos = candidate_ids[: args.k]
         baseline.latencies_ms.append((time.perf_counter() - t0) * 1000.0)
         baseline.ndcgs.append(ndcg_at_k(pred_cos, b.gold, args.k))
         baseline.mrrs.append(mrr_at_k(pred_cos, b.gold, args.k))
         baseline.recalls.append(recall_at_k(pred_cos, b.gold, args.k))
         baseline.maps.append(ap_at_k(pred_cos, b.gold, args.k))
         baseline.delta_h.append(0.0)
+
+        # Optional reranker baseline (cross-encoder rescoring top-m)
+        if reranker_model and reranker_method is not None:
+            try:  # pragma: no cover - network/model path
+                t_r0 = time.perf_counter()
+                # Placeholder text: use doc id (real evaluation should pass actual doc text)
+                pairs = [(b.query.text, doc_id) for doc_id in candidate_ids]
+                scores = reranker_model.predict(pairs)  # type: ignore[attr-defined]
+                order_r = np.argsort(-np.array(scores))[: args.k]
+                pred_rr = [candidate_ids[i] for i in order_r]
+                reranker_method.latencies_ms.append((time.perf_counter() - t_r0) * 1000.0)
+                reranker_method.ndcgs.append(ndcg_at_k(pred_rr, b.gold, args.k))
+                reranker_method.mrrs.append(mrr_at_k(pred_rr, b.gold, args.k))
+                reranker_method.recalls.append(recall_at_k(pred_rr, b.gold, args.k))
+                reranker_method.maps.append(ap_at_k(pred_rr, b.gold, args.k))
+                reranker_method.delta_h.append(0.0)
+            except Exception as e:  # pragma: no cover
+                print("Reranker failure:", e)
 
         if args.no_api:
             continue
@@ -197,6 +235,8 @@ def run(args: argparse.Namespace):
             print("API request (MMR) failed:", e)
 
     methods = [baseline]
+    if reranker_method is not None:
+        methods.append(reranker_method)
     if not args.no_api:
         methods.extend([coh, coh_mmr])
     # Summaries
@@ -277,6 +317,12 @@ def main():  # noqa: D401
     p.add_argument("--m", type=int, default=400)
     p.add_argument("--seed", type=int, default=0, help="Random seed for sampling")
     p.add_argument("--no-api", action="store_true", help="Skip API calls (baseline only)")
+    p.add_argument("--reranker", action="store_true", help="Include a cross-encoder reranker baseline (slow)")
+    p.add_argument(
+        "--reranker-model",
+        default="cross-encoder/ms-marco-MiniLM-L-6-v2",
+        help="HuggingFace model id for cross-encoder reranker",
+    )
     p.add_argument("--bootstrap", action="store_true", help="Enable bootstrap confidence intervals")
     p.add_argument("--boots", type=int, default=400, help="Number of bootstrap resamples (default 400)")
     p.add_argument("--output", help="Markdown output file")
