@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 
 class Settings(BaseModel):
-    use_mock: bool = os.getenv("USE_MOCK", "true").lower() in ("1","true","yes")
+    use_mock: bool = os.getenv("USE_MOCK", "true").lower() in ("1", "true", "yes")
     connector: str = os.getenv("CONNECTOR", "memory")  # memory|pgvector|pinecone|chroma|vertex
     embedder: str = os.getenv("EMBEDDER", "sentence_transformer")  # sentence_transformer|openai|vertex
 
@@ -34,26 +34,32 @@ class Settings(BaseModel):
     # Graph / kNN params
     # Graph / kNN params (default k reduced from 10 -> 5 per Phase B findings)
     knn_k: int = int(os.getenv("KNN_K", "5"))
-    knn_mutual: bool = os.getenv("KNN_MUTUAL", "true").lower() in ("1","true","yes")
+    knn_mutual: bool = os.getenv("KNN_MUTUAL", "true").lower() in ("1", "true", "yes")
 
     # Ranking / redundancy thresholds
     redundancy_threshold: float = float(os.getenv("REDUNDANCY_THRESHOLD", "0.35"))  # trigger MMR consideration
     mmr_lambda: float = float(os.getenv("MMR_LAMBDA", "0.3"))  # weighting inside MMR formula
-    enable_mmr: bool = os.getenv("ENABLE_MMR", "false").lower() in ("1","true","yes")  # global force enable
+    enable_mmr: bool = os.getenv("ENABLE_MMR", "false").lower() in ("1", "true", "yes")  # global force enable
 
     # Validation / health
-    expected_dim: int | None = (int(os.getenv("EXPECTED_DIM")) if os.getenv("EXPECTED_DIM") else None)
-    fail_on_dim_mismatch: bool = os.getenv("FAIL_ON_DIM_MISMATCH", "true").lower() in ("1","true","yes")
+    _env_expected = os.getenv("EXPECTED_DIM")
+    expected_dim: int | None = int(_env_expected) if _env_expected is not None else None
+    fail_on_dim_mismatch: bool = os.getenv("FAIL_ON_DIM_MISMATCH", "true").lower() in ("1", "true", "yes")
 
     # Auth
     api_keys: str | None = os.getenv("API_KEYS")  # comma-separated list; if None or empty => auth disabled
     api_key_header: str = os.getenv("API_KEY_HEADER", "x-api-key")
 
     # Feature flags (pivot)
-    enable_audit_log: bool = os.getenv("ENABLE_AUDIT_LOG", "true").lower() in ("1","true","yes")
-    enable_adaptive: bool = os.getenv("ENABLE_ADAPTIVE", "false").lower() in ("1","true","yes")
-    enable_bandit: bool = os.getenv("ENABLE_BANDIT", "false").lower() in ("1","true","yes")
-    enable_adaptive_apply: bool = os.getenv("ENABLE_ADAPTIVE_APPLY", "false").lower() in ("1","true","yes")
+    enable_audit_log: bool = os.getenv("ENABLE_AUDIT_LOG", "true").lower() in ("1", "true", "yes")
+    enable_adaptive: bool = os.getenv("ENABLE_ADAPTIVE", "false").lower() in ("1", "true", "yes")
+    enable_bandit: bool = os.getenv("ENABLE_BANDIT", "false").lower() in ("1", "true", "yes")
+    enable_adaptive_apply: bool = os.getenv("ENABLE_ADAPTIVE_APPLY", "false").lower() in ("1", "true", "yes")
     # Adaptive persistence path (for adaptive/ bandit state); JSON snapshot
     adaptive_state_path: str = os.getenv("ADAPTIVE_STATE_PATH", "adaptive_state.json")
     audit_hmac_key: str | None = os.getenv("AUDIT_HMAC_KEY")
+    # Normalization migration flag (Phase 2: default true). An escape hatch FORCE_LEGACY_COH can
+    # override this to re-enable legacy attribution for one minor release window.
+    _force_legacy = os.getenv("FORCE_LEGACY_COH", "false").lower() in ("1", "true", "yes")
+    _norm_default = os.getenv("USE_NORMALIZED_COH", "true").lower() in ("1", "true", "yes")
+    use_normalized_coh: bool = False if _force_legacy else _norm_default
