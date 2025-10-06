@@ -1,11 +1,11 @@
-# Explainability Receipts (v1)
+# Explainability Receipts (v2 Active)
 
-The retrieval response includes a structured receipt describing how the coherence optimization affected ranking. This document defines version 1 of the receipt fields and evolution guidelines.
+The retrieval response includes a structured receipt describing how the coherence optimization affected ranking. Receipt schema **version 2** is now active (normalized coherence default). Legacy version 1 details are retained for historical and migration reference.
 
 ## Versioning
-`receipt_version` in diagnostics indicates schema version. Breaking changes increment this integer. Additive fields do **not** bump the version. Deprecated fields are kept for ≥1 minor release before removal.
+`receipt_version` in diagnostics indicates schema version. Breaking changes increment this integer. Additive fields do **not** bump the version. Deprecated fields are kept for ≥1 minor release (or explicit deprecation window) before removal. Phase 2 normalization flip activated v2 as the default.
 
-## Core Scalars
+## Core Scalars (v2)
 | Field | Source | Meaning |
 |-------|--------|---------|
 | `deltaH_total` | diagnostics | Total coherence (energy) improvement vs baseline (sum of per-item coherence_drop). |
@@ -18,8 +18,9 @@ The retrieval response includes a structured receipt describing how the coherenc
 | `applied_alpha` | diagnostics | Alpha actually used in ranking (manual, suggested, or bandit arm). |
 | `alpha_source` | diagnostics | One of `manual`, `suggested`, `bandit`. |
 | `query_id` | diagnostics | Identifier for correlating feedback. |
-| `coherence_mode` | diagnostics | Coherence attribution mode (`legacy` or `normalized`, Phase 0 feature-flagged). |
-| `deltaH_trace` | diagnostics | Trace-form ΔH (currently mirrors `deltaH_total` in Phase 0; will become exact identity). |
+| `coherence_mode` | diagnostics | Attribution mode (`normalized` default; `legacy` only via `FORCE_LEGACY_COH`). |
+| `deltaH_trace` | diagnostics | Trace-form ΔH (quadratic identity; ≈ `deltaH_total`). |
+| `deltaH_rel_diff` | diagnostics | Scope divergence: relative difference between full candidate-set trace and returned top‑k component sum (expected p95 ≈ 0.30–0.40). Not an accuracy error. (Temporary; will rename or remove in Phase 3.) |
 | `kappa_bound` | diagnostics | Estimated upper bound on condition number of solve operator (stability diagnostic). |
 | `coherence_fraction` | diagnostics | Fraction of total ΔH attributable to coherence (Laplacian) term (0–1). |
 
@@ -56,10 +57,8 @@ Each item has:
 A "complete" receipt has: non-null `deltaH_total`, non-null `redundancy`, and at least one item with neighbors. Ratio = present / 3.
 
 ## Deprecation Plan
-- `coh_drop_total` (alias of `deltaH_total`) – mark deprecated in v1. Removal planned after two minor version increments or when no external consumers depend on it (whichever first). Clients should migrate to `deltaH_total` immediately.
-  - Phase 1 (current): both fields present.
-  - Phase 2: add structured log warning when `coh_drop_total` accessed (planned).
-  - Phase 3: remove `coh_drop_total` and bump `receipt_version` if removal constitutes a breaking change for any retained clients.
+- `coh_drop_total` (alias of `deltaH_total`) – deprecated since v1; removal targeted for Phase 3 cleanup.
+- `deltaH_rel_diff` – retained as scope divergence telemetry during grace window; to be renamed (`deltaH_scope_diff`) or removed in Phase 3.
 
 ## Future Additions (v2 candidates)
 - Learned edge weights (separate from raw cosine).
@@ -68,8 +67,8 @@ A "complete" receipt has: non-null `deltaH_total`, non-null `redundancy`, and at
 - Tenant-scoped adaptive parameter set ID.
  - Normalized coherence as default (will bump `receipt_version` to 2 when legacy removed).
 
-## v2 Preview – Normalized Coherence & Energy Identity
-Status: Phase 0 (feature-flagged). When `USE_NORMALIZED_COH=true` the system:
+## Normalized Coherence & Energy Identity (v2 Default)
+Status: Phase 2 complete — normalized path is the default. Use `FORCE_LEGACY_COH=true` only for emergency rollback during the grace window.
 1. Computes per-node coherence contributions using the symmetric normalized Laplacian \(L_{sym} = I - D^{-1/2} A D^{-1/2}\) by forming degree-normalized embeddings \(Q_i / \sqrt{d_i}\) prior to difference.
 2. Aggregates undirected edge energy with strict 0.5 / 0.5 splitting after grouping duplicate (i,j)/(j,i) edges.
 3. Emits additional diagnostics fields:
@@ -78,7 +77,7 @@ Status: Phase 0 (feature-flagged). When `USE_NORMALIZED_COH=true` the system:
    - `deltaH_rel_diff`: Relative difference between legacy and normalized totals when running in legacy mode with reference available (telemetry only; to be removed post cutover).
    - `kappa_bound`: Lightweight conditioning bound of solve operator (helps identify poorly conditioned batches).
 
-Planned for v2 formalization:
+Implemented in v2:
 | Change | Effect |
 |--------|--------|
 | Remove legacy asymmetric attribution | Decreases ambiguity; per-node coherence strictly tied to normalized Laplacian objective. |
@@ -109,18 +108,19 @@ Planned for v2 formalization:
 }
 ```
 
-### Migration Guidance
-| Phase | Action | Client Recommendation |
-|-------|--------|-----------------------|
-| 0 (current) | Flag off by default; new fields additive | Begin reading `coherence_mode`, `deltaH_trace`. |
-| 1 | Internal enablement, monitor `deltaH_rel_diff` | Alert if diff > 1e-3 (investigate data skew). |
-| 2 | Flip default (`normalized`), bump `receipt_version` to 2 | Treat legacy attribution as deprecated; update any magnitude-based heuristics. |
-| 3 | Remove legacy path & `deltaH_rel_diff` | Rely solely on trace identity for audits. |
+### Migration Guidance (Phases 0–2 Complete)
+| Phase | Status | Action | Client Recommendation |
+|-------|--------|--------|-----------------------|
+| 0 | Done | Flag introduced (`USE_NORMALIZED_COH=false`) | Begin parsing `coherence_mode`, ignore magnitude shift. |
+| 1 | Done | Internal enablement + monitoring | Observe `deltaH_rel_diff` distribution; verify fallback stability. |
+| 2 | Done | Default flip + `receipt_version=2` | Update heuristics; treat legacy as deprecated. |
+| 3 | Pending | Remove legacy & scope metric | Stop relying on `deltaH_rel_diff`; use trace identity. |
 
-### Invariants (Target)
+### Invariants (v2)
 - `sum_i coherence_drop_i == deltaH_total` (within FP tolerance – enforced by test).
-- `deltaH_trace >= 0` and `abs(deltaH_trace - deltaH_total)` small (future identity).
-- Monotonic improvement: enabling normalization should not reduce ranking quality vs legacy in internal benchmarks (tracked separately).
+- `deltaH_trace >= 0` and `abs(deltaH_trace - deltaH_total)` ≈ 0.
+- Scope divergence (`deltaH_rel_diff`) p95 stable (~0.30–0.40) unless top‑k truncation policy changes.
+- Normalization flip does not raise fallback rate (>2% triggers alert).
 
 See `NORMALIZATION_PLAN.md` for the full technical roadmap.
 
@@ -187,12 +187,8 @@ Stakeholder Value:
 - Exposes a clear conditioning signal for proactive reliability management.
 
 
-## Normalization Migration
-The normalization rollout (see `NORMALIZATION_PLAN.md`) introduces mathematically consistent per-node coherence using the symmetric normalized Laplacian and adds diagnostics:
-- `coherence_mode` confirms which attribution path was active.
-- `deltaH_trace` will validate ΔH via a non-negative quadratic identity (placeholder equals `deltaH_total` during Phase 0).
-- `kappa_bound` offers a lightweight spectral conditioning estimate aiding convergence monitoring.
-During Phase 0 these fields are additive and backward compatible; clients should begin reading `coherence_mode` to prepare for `normalized` becoming the default in receipt_version=2.
+## Normalization Migration Summary
+Phases 0–2 complete. Phase 1 synthetic 1000-query load: 0% fallback, p95 scope divergence ~0.375, kappa_bound p95 ~1.75. Phase 2 flipped default; escape hatch `FORCE_LEGACY_COH` remains for a limited grace window. Phase 3 will remove legacy path & finalize metric renames.
 
 ## Audit Log Entry (when ENABLE_AUDIT_LOG)
 Each query appends JSON line with minimal PII:
