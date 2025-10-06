@@ -12,7 +12,8 @@ This document describes how to measure retrieval uplift and operational cost for
 |----------|--------|-------------|
 | Quality | nDCG@K | Discounted gain using binary or graded relevance |
 | Quality | MRR@K | Reciprocal rank of first relevant item |
-| Quality (future) | Recall@K | Fraction of gold set retrieved |
+| Quality | Recall@K | Fraction of gold set retrieved |
+| Quality | MAP@K | Mean Average Precision over queries |
 | Explainability | ΔH distribution | Histogram / summary of `deltaH_total` showing structural uplift |
 | Explainability | coherence_fraction | Share of ΔH attributable to Laplacian term |
 | Performance | P95 latency | End-to-end sidecar latency over queries |
@@ -62,11 +63,11 @@ Markdown table with absolute metrics and uplift percentages, plus a JSON artifac
 
 Example (illustrative numbers):
 
-| Method | nDCG@10 | MRR@10 | P95 Lat (ms) | Avg ΔH | Explainability | nDCG Uplift % | MRR Uplift % |
-|--------|---------|--------|--------------|--------|----------------|---------------|--------------|
-| Cosine | 0.4200 | 0.3800 | 12.0 | 0.0000 | none | - | - |
-| ConsciousDB | 0.5100 | 0.4500 | 48.0 | 2.3100 | receipt | 21.43 | 18.42 |
-| ConsciousDB+MMR | 0.5050 | 0.4480 | 52.0 | 2.2800 | receipt | 20.24 | 17.89 |
+| Method | nDCG@10 | MRR@10 | Recall@10 | MAP@10 | P95 Lat (ms) | Avg ΔH | Explainability | nDCG Uplift % | MRR Uplift % | Recall Uplift % | MAP Uplift % |
+|--------|---------|--------|-----------|--------|--------------|--------|----------------|---------------|--------------|-----------------|--------------|
+| Cosine | 0.4200 | 0.3800 | 0.6100 | 0.2900 | 12.0 | 0.0000 | none | - | - | - | - |
+| ConsciousDB | 0.5100 | 0.4500 | 0.6620 | 0.3410 | 48.0 | 2.3100 | receipt | 21.43 | 18.42 | 8.52 | 17.59 |
+| ConsciousDB+MMR | 0.5050 | 0.4480 | 0.6750 | 0.3380 | 52.0 | 2.2800 | receipt | 20.24 | 17.89 | 10.66 | 16.55 |
 
 > MMR can slightly trade off MRR if diversification displaces the first relevant doc while improving broader coverage metrics.
 
@@ -76,11 +77,18 @@ Example (illustrative numbers):
 ## Extending the Suite
 Planned enhancements:
 - Graded relevance (gain values) from MS MARCO BM25 judgments.
-- Recall@K and MAP.
-- Cumulative throughput & cost simulation (CPU time vs GPU reranker cost).
-- Confidence intervals via bootstrap resampling.
 - Latency decomposition percentiles (embed / ann / build / solve / rank).
+- Cumulative throughput & cost simulation (CPU time vs GPU reranker cost).
 - Comparative reranker baseline (e.g., cross-encoder). *Out-of-scope for open-core; added in premium eval toolkit.*
+
+### Confidence Intervals (Implemented)
+Enable non-parametric bootstrap CIs via:
+
+```bash
+python -m benchmarks.run_benchmark --dataset synthetic --queries 50 --k 10 --bootstrap --boots 800
+```
+
+Each reported metric will include `_ci` triplets in JSON output: `[mean, lower, upper]` at 95% confidence (configurable via code). Use these intervals to validate that uplift vs baseline is statistically robust (interval excludes 0 when comparing paired differences). A lightweight heuristic is to ensure `nDCG@K_ci[1]` for ConsciousDB exceeds the cosine `nDCG@K` point estimate before locking thresholds into CI gates. For automated regression gating you can later compute paired bootstrap of differences (not yet implemented).
 
 ## Running Benchmarks
 ```bash
