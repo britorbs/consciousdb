@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "consciousdb-sidecar"
-version = "0.1.0"
+version = "3.0.0"
 description = "ConsciousDB Sidecar – model-free coherence optimization layer for vector retrieval"
 readme = "README.md"
 # Business Source License 1.1 is not an SPDX identifier; point to LICENSE file.
@@ -33,6 +33,9 @@ dependencies = [
 	"prometheus-client==0.20.0"
 ]
 
+[project.scripts]
+consciousdb-sidecar = "api.cli:main"
+
 [tool.setuptools]
 packages = [
 	"adaptive",
@@ -56,10 +59,20 @@ dev = [
 	"pytest-cov>=5.0.0",
 	"mypy>=1.11.0",
 	"types-requests",
-	"ruff>=0.5.0"
+	"ruff>=0.5.0",
+	"jsonschema>=4.21.1"
 ]
 security = [
 	"pip-audit>=2.7.0"
+]
+demo = [
+	"streamlit>=1.36.0",
+	"requests>=2.32.0"
+]
+bench = [
+	"requests>=2.32.0",
+	"numpy>=1.26.4",
+	"tqdm>=4.66.0"
 ]
 
 [project.urls]
@@ -84,3 +97,15 @@ ignore = []
 "api/schemas.py" = ["N815"]
 "tests/*.py"  = ["N802", "N803", "N806", "N815", "E501"]
 "adaptive/manager.py" = ["N803", "N815"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+namespace_packages = true
+show_error_codes = true
+explicit_package_bases = true
+exclude = [
+	"build/.*",
+	"dist/.*",
+	".venv/.*"
+]

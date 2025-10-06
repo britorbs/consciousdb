@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://consciousdb.dev/schemas/query_response.schema.json",
+  "title": "QueryResponse",
+  "type": "object",
+  "required": ["items", "diagnostics", "version"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "score", "align", "activation", "energy_terms"],
+        "properties": {
+          "id": {"type": "string"},
+          "score": {"type": "number"},
+          "align": {"type": "number"},
+          "baseline_align": {"type": ["number", "null"]},
+          "uplift": {"type": ["number", "null"]},
+          "activation": {"type": "number"},
+          "neighbors": {
+            "type": "array",
+            "items": {"type": "object", "required": ["id", "w"], "properties": {"id": {"type": "string"}, "w": {"type": "number"}}},
+            "default": []
+          },
+          "energy_terms": {
+            "type": "object",
+            "required": ["coherence_drop", "anchor_drop", "ground_penalty"],
+            "properties": {
+              "coherence_drop": {"type": "number"},
+              "anchor_drop": {"type": "number"},
+              "ground_penalty": {"type": "number"}
+            }
+          },
+          "excerpt": {"type": ["string", "null"]}
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "required": ["similarity_gap", "coh_drop_total"],
+      "properties": {
+        "similarity_gap": {"type": "number"},
+        "coh_drop_total": {"type": "number"},
+        "deltaH_total": {"type": ["number", "null"]},
+        "component_count": {"type": ["integer", "null"], "minimum": 0},
+        "largest_component_ratio": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+        "solver_efficiency": {"type": ["number", "null"]},
+        "uplift_avg": {"type": ["number", "null"]},
+        "suggested_alpha": {"type": ["number", "null"]},
+        "applied_alpha": {"type": ["number", "null"]},
+        "alpha_source": {"type": ["string", "null"]},
+        "used_deltaH": {"type": "boolean"},
+        "used_expand_1hop": {"type": "boolean"},
+        "cg_iters": {"type": "integer"},
+        "residual": {"type": "number"},
+        "fallback": {"type": "boolean"},
+        "fallback_reason": {"type": ["string", "null"]},
+        "timings_ms": {"type": "object", "additionalProperties": {"type": "number"}},
+        "receipt_version": {"type": ["integer", "null"]},
+        "edge_count": {"type": ["integer", "null"], "minimum": 0},
+        "avg_degree": {"type": ["number", "null"]},
+        "iter_min": {"type": ["integer", "null"]},
+        "iter_max": {"type": ["integer", "null"]},
+        "iter_avg": {"type": ["number", "null"]},
+        "iter_med": {"type": ["number", "null"]},
+        "redundancy": {"type": ["number", "null"]},
+        "used_mmr": {"type": ["boolean", "null"]},
+        "weights_mode": {"type": ["string", "null"]}
+      }
+    },
+    "query_id": {"type": ["string", "null"]},
+    "version": {"type": "string"}
+  }
+}

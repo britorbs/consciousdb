@@ -55,8 +55,7 @@ from infra.metrics import (
     ADAPTIVE_STATE_LOAD_FAILURE,
     ADAPTIVE_STATE_SAVE_FAILURE,
     BANDIT_ARM_SELECT,
-    COHERENCE_MODE_COUNT,
-    DELTAH_REL_DIFF,
+    DELTAH_SCOPE_DIFF,
     FALLBACK_REASON,
     observe_adaptive_feedback,
     observe_bandit_snapshot,
@@ -281,9 +280,8 @@ def query(req: QueryRequest):
                 coh_drop_total=0.0,
                 deltaH_total=0.0,
                 # Normalization diagnostics (easy path: zeroed)
-                coherence_mode="normalized" if SET.use_normalized_coh else "legacy",
                 deltaH_trace=0.0,
-                deltaH_rel_diff=None,
+                deltaH_scope_diff=None,
                 kappa_bound=None,
                 suggested_alpha=suggested,
                 applied_alpha=applied_alpha,
@@ -431,7 +429,7 @@ def query(req: QueryRequest):
     lambda_g = 1.0
     lambda_c = 0.5
     lambda_q = 4.0
-    coh_b, anc_b_dummy, grd_b, extra_b = per_node_components(
+    coh_b, anc_b_dummy, grd_b, _ = per_node_components(
         Qb,
         X_S,
         L_S,
@@ -443,7 +441,7 @@ def query(req: QueryRequest):
         normalized=SET.use_normalized_coh,
         deg=deg_full[idx_S],
     )
-    coh_s, anc_s, grd_s, extra_s = per_node_components(
+    coh_s, anc_s, grd_s, _ = per_node_components(
         Qs,
         X_S,
         L_S,
@@ -462,21 +460,9 @@ def query(req: QueryRequest):
     anc_drop = anc_b - anc_s  # per-node anchor improvement (λ_q scaled)
     grd_drop = grd_b - grd_s  # per-node ground improvement (λ_g scaled)
     coh_drop_total = float(np.sum(coh_drop))
-    coherence_mode = "normalized" if SET.use_normalized_coh else "legacy"
-    # Optionally compute reference difference between legacy and normalized totals for diagnostics (Phase 0 collection)
-    deltaH_rel_diff = None
-    if extra_b.get("coh_norm") is not None and extra_s.get("coh_norm") is not None and not SET.use_normalized_coh:
-        # Compare totals if normalized reference available
-        legacy_total = coh_drop_total
-        norm_total = float(np.sum(extra_b["coh_norm"]) - np.sum(extra_s["coh_norm"]))
-        denom = abs(legacy_total) + 1e-12
-        deltaH_rel_diff = abs(norm_total - legacy_total) / denom
-    elif extra_b.get("coh_legacy") is not None and extra_s.get("coh_legacy") is not None and SET.use_normalized_coh:
-        # Symmetric case when normalized is active; compare back to legacy reference
-        norm_total = coh_drop_total
-        legacy_total = float(np.sum(extra_b["coh_legacy"]) - np.sum(extra_s["coh_legacy"]))
-        denom = abs(norm_total) + 1e-12
-        deltaH_rel_diff = abs(norm_total - legacy_total) / denom
+    # normalized permanently
+    # Phase 3: legacy comparison removed; only scope difference retained later.
+    deltaH_scope_diff = None
     solve_ms = (time.perf_counter() - solve_t0) * 1000.0
 
     # Graph connected components (on S adjacency)
@@ -679,12 +665,7 @@ def query(req: QueryRequest):
     deltaH_trace = deltaH_trace_topk  # retain legacy field pointing to top-k for backward compatibility
     # Relative difference (monitoring) between scopes when both meaningful
     if deltaH_trace_full not in (None,) and abs(deltaH_trace_full) > 1e-12:
-        deltaH_rel_diff_scopes = abs(deltaH_trace_full - deltaH_trace_topk) / (abs(deltaH_trace_full) + 1e-12)
-        # If existing legacy vs normalized diff also present, prefer scope diff for Phase 1 monitoring
-        if deltaH_rel_diff is None:
-            deltaH_rel_diff = deltaH_rel_diff_scopes
-    else:
-        deltaH_rel_diff_scopes = None
+        deltaH_scope_diff = abs(deltaH_trace_full - deltaH_trace_topk) / (abs(deltaH_trace_full) + 1e-12)
     # κ(M) bound estimation: M = λ_g I + λ_c L + λ_q B ; λ_min ≥ λ_g (PSD terms added)
     try:
         # Power iteration to estimate largest eigenvalue of (λ_g I + λ_c L + λ_q diag(b))
@@ -718,8 +699,8 @@ def query(req: QueryRequest):
             similarity_gap=gap,
             coh_drop_total=coh_drop_total,
             deltaH_total=coh_drop_total,
-            coherence_mode=coherence_mode,
-            deltaH_rel_diff=deltaH_rel_diff,
+            
+            deltaH_scope_diff=deltaH_scope_diff,
             deltaH_trace=deltaH_trace,
             deltaH_trace_topk=deltaH_trace_topk,
             deltaH_trace_full=deltaH_trace_full,
@@ -772,10 +753,9 @@ def query(req: QueryRequest):
             low_impact_gate=not used_deltaH,
             neighbors_present=any(len(it.neighbors) > 0 for it in items),
         )
-        COHERENCE_MODE_COUNT.labels(mode=coherence_mode).inc()
-        if deltaH_rel_diff is not None:
+        if deltaH_scope_diff is not None:
             try:
-                DELTAH_REL_DIFF.observe(deltaH_rel_diff)
+                DELTAH_SCOPE_DIFF.observe(deltaH_scope_diff)
             except Exception:
                 pass
     except Exception as e:  # pragma: no cover

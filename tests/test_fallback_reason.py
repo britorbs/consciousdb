@@ -51,6 +51,10 @@ def test_fallback_residual_reason():
         assert r.status_code == 200, r.text
         diag = r.json()["diagnostics"]
         if diag["fallback"]:
-            assert "residual" in diag["fallback_reason"] or "iters_cap" in diag["fallback_reason"] or "forced" in diag["fallback_reason"]
+            assert (
+                "residual" in diag["fallback_reason"]
+                or "iters_cap" in diag["fallback_reason"]
+                or "forced" in diag["fallback_reason"]
+            )
     finally:
         SET.api_keys = prior

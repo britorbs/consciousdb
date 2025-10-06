@@ -21,7 +21,9 @@ def test_audit_signature_present(monkeypatch):
         os.chdir(td)
         try:
             client = TestClient(app)
-            r = client.post("/query", json={"query":"hello world", "k":3, "m":120, "overrides": {"alpha_deltaH": 0.1}})
+            r = client.post(
+                "/query", json={"query": "hello world", "k": 3, "m": 120, "overrides": {"alpha_deltaH": 0.1}}
+            )
             assert r.status_code == 200
             # Read latest audit line
             path = pathlib.Path("audit.log")
@@ -33,8 +35,13 @@ def test_audit_signature_present(monkeypatch):
             # Recompute signature for verification
             import hashlib
             import hmac
-            body_no_sig = {k:v for k,v in obj.items() if k != "signature"}
-            recomputed = hmac.new(SET.audit_hmac_key.encode("utf-8"), json.dumps(body_no_sig, sort_keys=True).encode("utf-8"), hashlib.sha256).hexdigest()
+
+            body_no_sig = {k: v for k, v in obj.items() if k != "signature"}
+            recomputed = hmac.new(
+                SET.audit_hmac_key.encode("utf-8"),
+                json.dumps(body_no_sig, sort_keys=True).encode("utf-8"),
+                hashlib.sha256,
+            ).hexdigest()
             assert recomputed == obj["signature"]
         finally:
             os.chdir(cwd)

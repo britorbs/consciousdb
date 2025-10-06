@@ -11,12 +11,17 @@ class Connector(Protocol):
         """Return embeddings for ids (shape [len(ids), d]). Optional if top_m returns vectors."""
 ```
 
-Included adapters (stubs):
-- `connectors/pgvector.py` (SQL using `<->`)
-- `connectors/pinecone.py` (client API)
-- `connectors/chroma.py`
-- `connectors/vertex_ai.py`
+Included adapters:
+- `connectors/pgvector.py` (SQL using `<->`; returns ids+similarities)
+- `connectors/pinecone.py` (client API, returns vectors inline when `include_values` allowed)
+- `connectors/chroma.py` (REST client, returns embeddings + distances -> similarity = 1 - distance)
+- `connectors/vertex_ai.py` (stub)
 - `connectors/memory.py` (brute-force dev)
+
+Capability notes:
+- Pinecone: retries with exponential backoff; `fetch_vectors` only used when inline values absent.
+- Chroma: retries on query/get; similarity derived from distance (assumes cosine distance scale).
+- pgvector: optional future optimization is to materialize vectors in query or implement `fetch_vectors`.
 
 **Security:** Use `infra/secrets.py` to load credentials from env or your secret manager (GCP Secret Manager, AWS Secrets Manager, Vault). Never log secrets.
 

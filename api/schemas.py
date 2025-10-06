@@ -87,9 +87,9 @@ class Diagnostics(BaseModel):
     # Phase 1 dual-scope traces
     deltaH_trace_topk: float | None = None  # top-k component-sum scope (returned items)
     deltaH_trace_full: float | None = None  # full candidate set quadratic identity scope
-    deltaH_rel_diff: float | None = None  # |deltaH_trace - deltaH_total| / (deltaH_total + eps)
+    deltaH_scope_diff: float | None = None  # Relative scope difference full vs top-k trace
     kappa_bound: float | None = None  # spectral condition estimate (upper bound)
-    coherence_mode: str | None = None  # 'legacy' or 'normalized'
+    # coherence_mode removed (always normalized); field dropped to reduce payload size
     coherence_fraction: float | None = None  # share of total ΔH attributable to coherence term
 
 

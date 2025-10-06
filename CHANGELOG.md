@@ -2,6 +2,48 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0] - 2025-10-05
+### Added
+- Normalized Laplacian per-node coherence attribution (legacy path removed; now canonical).
+- Energy gap quadratic identity (`deltaH_trace`) with parity audit vs per-node sum (`deltaH_total`).
+- Scope truncation divergence metric renamed to `deltaH_scope_diff` (formerly rollout `deltaH_rel_diff`).
+- Conditioning diagnostic `kappa_bound` (heuristic upper bound) surfaced in diagnostics.
+- Prometheus metrics: ΔH histograms, solver latency/iterations, redundancy, gate & fallback counters.
+- Connectors: Pinecone, Chroma (alongside existing memory / pgvector / Vertex AI stubs) with retry + optional vector return.
+- Benchmark harness (synthetic datasets, nDCG@K & MRR@K metrics, JSON + Markdown output) and `docs/BENCHMARKS.md` methodology.
+- Streamlit demo app for live coherence receipts + Cloud Run deployment guidance.
+- Example notebook `examples/quick_start.ipynb` demonstrating normalized coherence attribution and diagnostics.
+- CONTRIBUTING guide, CI workflow with coverage (85% threshold), Codecov integration, architecture diagram in README.
+
+### Changed
+- Receipt schema bumped to version 2 (normalized-only); removed `coherence_mode` field.
+- Simplified solver/energy pipeline to a single normalized path (removed feature flags `USE_NORMALIZED_COH`, `FORCE_LEGACY_COH`).
+- Renamed `deltaH_rel_diff` → `deltaH_scope_diff` to clarify semantics (scope truncation, not identity error).
+- README repositioned: physics-based, model-free reranking; added feature highlights and Mermaid flow diagram.
+
+### Removed
+- Legacy (unnormalized) coherence attribution branch and associated environment flags.
+- Adoption counter metric for coherence mode after stabilization.
+- Transitional migration planning document (`NORMALIZATION_PLAN.md`).
+
+### Fixed
+- Ensured trace parity tolerance (<1e-8 relative) consistently enforced in tests.
+- Eliminated drift in per-node attribution by using degree-normalized differences aligning exactly with ΔH identity.
+
+### Internal / Maintenance
+- Refactored tests to a single normalized path, reducing duplication and potential divergence.
+- Established coverage enforcement (85% line) in CI pipelines.
+
+## [Unreleased]
+- Real dataset loaders (MS MARCO / NQ) & additional metrics (Recall@K, MAP, bootstrap CIs).
+- Reranker baseline (cross-encoder) comparison & scheduled benchmark CI.
+
+---
+Format loosely follows Keep a Changelog. Versioning currently semantic with major increment for schema-breaking receipt removal of legacy fields.
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
 The format (for released versions) adheres to [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project follows [SemVer](https://semver.org/) once it reaches a stable 1.0.0.
 
 ## [Unreleased]

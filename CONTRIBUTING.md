@@ -1,3 +1,76 @@
+## Contributing to ConsciousDB
+
+Thank you for your interest in contributing! This project treats your existing vector database as the model via a convex coherence optimization. High signal, well‑scoped contributions keep iteration velocity high while preserving mathematical and operational integrity.
+
+### Development Setup
+1. Clone & create a virtual environment
+```bash
+python -m venv .venv
+source .venv/bin/activate  # PowerShell: . .\.venv\Scripts\Activate.ps1
+pip install --upgrade pip
+pip install -e .[dev]
+```
+2. (Optional) Install extras for connectors / embedders:
+```bash
+pip install -e .[embedders-sentencetransformers,connectors-pinecone,connectors-chroma]
+```
+3. Run the API (mock connector):
+```bash
+export USE_MOCK=true
+uvicorn api.main:app --reload --port 8080
+```
+
+### Running Tests & Coverage
+We enforce 85% line coverage (CI fails below threshold).
+```bash
+pytest -q --cov=. --cov-report=term --cov-report=xml
+```
+Upload to Codecov locally (optional) with:
+```bash
+bash <(curl -s https://codecov.io/bash) -f coverage.xml || true
+```
+
+### Linting & Type Checks
+```bash
+ruff check .
+mypy .
+```
+Run these before pushing; the CI pipeline runs ruff + mypy + tests + coverage.
+
+### Pull Request Guidelines
+1. Create a descriptive branch name: `feature/<short-desc>` or `fix/<issue-id>`.
+2. Keep PRs small & focused (prefer <500 LOC diff excluding generated / tests).
+3. Include / update tests for new logic (happy path + at least one edge case).
+4. Update relevant docs (`docs/ALGORITHM.md`, `RECEIPTS.md`, `API.md`) if schema or math changes.
+5. Avoid premature abstractions—optimize for clarity over cleverness.
+6. Do not introduce new heavy dependencies without discussion (open an issue first).
+7. Add structured logs instead of ad-hoc prints; keep receipt schema additions backwards-compatible.
+
+### Commit Message Style
+Use conventional-ish prefixes:
+`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `perf:`, `build:`, `chore:`.
+
+Example:
+```
+feat: add MS MARCO dataset loader with caching layer
+```
+
+### Architectural Notes
+Core loop: embed -> recall -> local graph -> SPD solve (CG) -> per-node ΔH attribution -> rank -> receipt.
+Per-node energy terms must sum (within FP tolerance) to `deltaH_total` and align with `deltaH_trace`.
+Any solver changes must maintain symmetry & positive definiteness of the system matrix.
+
+### Filing Issues
+Provide: purpose, minimal reproduction (if bug), expected vs actual behavior, environment (OS, Python, connector). Label clearly (`bug`, `enhancement`, `docs`).
+
+### Security
+Report vulnerabilities privately first (open a security advisory or email the maintainer). Avoid creating PoC exploit PRs without coordination.
+
+### License & CLA
+Code is under BSL 1.1 with future conversion to Apache 2.0. Submitting a PR implies you have the right to contribute under that license; no separate CLA currently required.
+
+### Thank You
+Your contributions help push an explainable, physics-inspired alternative to opaque rerankers. 🚀
 ## Contributing to ConsciousDB Sidecar
 
 Thank you for your interest in contributing! This project treats the vector database itself as the model ("database-as-model"). Contributions should preserve transparency, auditability, and low operational overhead.

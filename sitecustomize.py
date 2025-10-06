@@ -4,6 +4,7 @@ Pytest will automatically import sitecustomize if present on sys.path.
 We append the project root (the directory containing this file) so that
 `import api`, `import engine`, etc. work without requiring an editable install.
 """
+
 from __future__ import annotations
 
 import os

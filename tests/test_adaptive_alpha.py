@@ -18,11 +18,14 @@ def test_adaptive_alpha_suggestion_emerges(monkeypatch):
 
     # Provide a series of feedback events to cross MIN_SAMPLE threshold (~15). Using 20.
     for i in range(20):
-        c.post("/feedback", json={
-            "query_id": f"q{i}",
-            "clicked_ids": ["docA"] if i % 2 == 0 else [],
-            "accepted_id": "docA" if i % 5 == 0 else None
-        })
+        c.post(
+            "/feedback",
+            json={
+                "query_id": f"q{i}",
+                "clicked_ids": ["docA"] if i % 2 == 0 else [],
+                "accepted_id": "docA" if i % 5 == 0 else None,
+            },
+        )
 
     # Another query should now surface a suggested_alpha (may still be None if correlation weak; assert key exists)
     r2 = c.post("/query", json={"query": "alpha tuning 2", "k": 4, "m": 150})

@@ -13,6 +13,7 @@ def zscore(x: np.ndarray) -> np.ndarray:
         return np.zeros_like(x, dtype=np.float32)
     return (x - mu) / (sd + 1e-12)
 
+
 def mmr(ids, vectors, scores, lambda_mmr=0.3, k=8):
     ids = list(ids)
     V = vectors

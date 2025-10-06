@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import numpy as np
+from numpy.typing import NDArray
 
 
-def induce_subgraph(A: np.ndarray, idx: np.ndarray) -> np.ndarray:
-    return A[np.ix_(idx, idx)]
+def induce_subgraph(A: NDArray[np.float32], idx: np.ndarray) -> NDArray[np.float32]:
+    sub = A[np.ix_(idx, idx)]
+    return np.asarray(sub, dtype=np.float32)
 
-def one_hop_expand(A: np.ndarray, S: np.ndarray, cap: int | None = None) -> np.ndarray:
+
+def one_hop_expand(A: NDArray[np.float32], S: np.ndarray, cap: int | None = None) -> np.ndarray:
     mask = np.zeros(A.shape[0], dtype=bool)
     mask[S] = True
     for i in S:
@@ -14,10 +17,11 @@ def one_hop_expand(A: np.ndarray, S: np.ndarray, cap: int | None = None) -> np.n
         mask[nbrs] = True
     idx = np.flatnonzero(mask)
     if cap is not None and len(idx) > cap:
-        idx = np.concatenate([S, idx[~np.isin(idx, S)][:max(0, cap - len(S))]])
+        idx = np.concatenate([S, idx[~np.isin(idx, S)][: max(0, cap - len(S))]])
     return idx
 
-def knn_adjacency(X: np.ndarray, k: int, mutual: bool = True) -> np.ndarray:
+
+def knn_adjacency(X: NDArray[np.float32], k: int, mutual: bool = True) -> NDArray[np.float32]:
     """Build a cosine kNN adjacency matrix.
 
     Returns a dense (N,N) float32 adjacency with non-negative weights.
@@ -35,9 +39,9 @@ def knn_adjacency(X: np.ndarray, k: int, mutual: bool = True) -> np.ndarray:
     # Similarity matrix (can be large; acceptable for current M<=5000 baseline)
     sims = (Xn @ Xn.T).astype(np.float32)
     np.fill_diagonal(sims, -1.0)  # exclude self in top-k selection
-    k_eff = min(k, max(1, N-1))
+    k_eff = min(k, max(1, N - 1))
     # Argpartition for efficiency
-    idx_part = np.argpartition(-sims, kth=k_eff-1, axis=1)[:, :k_eff]
+    idx_part = np.argpartition(-sims, kth=k_eff - 1, axis=1)[:, :k_eff]
     rows = np.repeat(np.arange(N), k_eff)
     cols = idx_part.ravel()
     weights = sims[rows, cols]

@@ -5,6 +5,7 @@ from api.main import app
 
 client = TestClient(app)
 
+
 def test_receipt_contains_deltaH_and_neighbors(monkeypatch):
     # Force full pipeline (disable easy gate)
     # Set a very high similarity_gap_margin so easy gate won't trigger
@@ -18,8 +19,8 @@ def test_receipt_contains_deltaH_and_neighbors(monkeypatch):
             "coh_drop_min": 0.0,
             "expand_when_gap_below": 0.0,
             "iters_cap": 10,
-            "residual_tol": 1e-3
-        }
+            "residual_tol": 1e-3,
+        },
     }
     r = client.post("/query", json=req)
     assert r.status_code == 200, r.text

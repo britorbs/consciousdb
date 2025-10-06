@@ -1,16 +1,25 @@
-# ConsciousDB – The Coherence Layer for AI Retrieval
+# ConsciousDB – Physics-Based RAG Reranking
 
 <p align="center">
   <img src="docs/Wordmark%20Logo%20for%20ConsciousDB.svg" alt="ConsciousDB Wordmark" width="420" />
 </p>
 
-<!-- Badges (activate once CI visible) -->
-<!-- CI -->
-![CI](https://img.shields.io/github/actions/workflow/status/your-org/consciousdb-sidecar/ci.yml?branch=main&label=CI)
-<!-- Coverage (placeholder; integrate codecov or shields after first report) -->
-![Coverage](https://img.shields.io/badge/coverage-pending-lightgrey)
+<!-- Badges -->
+![CI](https://img.shields.io/github/actions/workflow/status/Maverick0351a/consciousdb/test.yml?branch=main&label=CI)
+![Coverage](https://img.shields.io/codecov/c/github/Maverick0351a/consciousdb/main?logo=codecov&label=coverage)
+![License](https://img.shields.io/badge/License-BSL%201.1-blue)
 
-Tagline: ConsciousDB is the coherence layer for AI retrieval — it makes your existing vector database auditable, explainable, and adaptive, without moving data.
+<sub>Coverage badge powered by Codecov (public repo does not require a token). Threshold enforced at 85% in CI.</sub>
+
+> ConsciousDB is the physics-based, model‑free reranking sidecar for RAG: a 50ms P95 coherence solve that shows **why** results rank via auditable ΔH energy receipts — no training, no drift, just math on your existing vectors.
+
+### Core Highlights
+🚀 Explainable reranking (per-item energy decomposition, neighbors, solver stats)<br/>
+📊 Energy receipts (ΔH trace identity + component attribution)<br/>
+🧠 Model-free (your vector DB *is* the model; convex optimization, not another black box)<br/>
+⚡ Low latency (CPU-friendly SPD solve; typical ~50ms P95 in mock/local tests)<br/>
+🔒 Non-invasive (BYO vector store: Pinecone, pgvector, Chroma, Vertex AI, Memory)<br/>
+🛡️ Audit & ops ready (structured diagnostics, Prometheus metrics, receipt versioning)
 
 ---
 
@@ -65,13 +74,22 @@ This “database as model” stance lets you gain model-like reranking uplift wi
 ---
 
 ## High-Level Flow
-Unlike ML rerankers, we do not pass vectors through an additional neural model. We treat the retrieved vectors as nodes in a transient graph and optimize their coherence on-the-fly:
-1. ANN Recall: Fetch top-M candidate vectors from your existing DB.
-2. Local Graph: Build a k=5 mutual cosine adjacency (cos+), optionally expand 1‑hop on hard queries.
-3. Coherence Solve: Solve SPD system (Jacobi-preconditioned CG) producing smoothed embeddings Q*.
-4. Scoring: Compute `coherence_drop_i` + smoothed alignment; blend with α; conditional MMR only when k>8 & redundancy high.
-5. Gates & Fallbacks: Easy-query gate (large gap ⇒ vector-only), low-impact gate (tiny ΔH), iteration/residual/SLO fallbacks.
-6. Receipt: Return ranked items + per-item energy terms, neighbors, timings, iteration stats, redundancy, fallback_reason, and deltaH_total.
+```mermaid
+flowchart LR
+  Q[Query] --> E[Embed]
+  E --> R[Vector DB Recall (M)]
+  R --> G[Local kNN Graph]
+  G --> S[SPD Solve (CG)]
+  S --> A[Per-Node ΔH Attribution]
+  A --> RK[Rank & Diversify]
+  RK --> RC[Receipt JSON]
+```
+1. Recall: Fetch top-M candidates from your existing vector DB.
+2. Graph Build: Mutual cosine k-NN (optionally expand for hard queries).
+3. Solve: Jacobi-preconditioned CG over normalized Laplacian + anchor/ground terms.
+4. Attribution: Per-node coherence, anchor, ground components giving ΔH conservation.
+5. Rank: Blend coherence uplift (z-scored) + smoothed alignment (optional MMR if redundancy high).
+6. Receipt: Items + per-item terms, neighbors, ΔH totals, solver diagnostics, gates/fallbacks.
 
 ---
 
@@ -271,6 +289,59 @@ Why this matters: customers can audit the economics, avoiding opaque, lock-in st
 | Bench & uplift methodology | `docs/BENCHMARKS.md` |
 | Troubleshooting scenarios | `docs/TROUBLESHOOTING.md` |
 | Simulation findings summary | `docs/SIMULATIONS.md` |
+
+---
+
+## Live Demo & Sandbox
+
+You can spin up an interactive demo that surfaces the full **coherence receipt** without writing code.
+
+### 1. Streamlit (local fastest)
+```bash
+pip install -e .[dev,demo,embedders-sentencetransformers]
+$env:USE_MOCK = 'true'      # deterministic synthetic dataset
+uvicorn api.main:app --port 8080 --reload  # in one terminal
+
+# In a second terminal
+streamlit run demo/streamlit_app.py
+```
+Set `CONSCIOUSDB_API` to point at a remote deployment if not local.
+
+### 2. Cloud Run Sandbox
+Deploy a public (rate-limited) mock-backed endpoint for investors / prospects:
+```bash
+./ops/cloudrun_deploy.sh consciousdb-sandbox us-central1
+# After deploy, capture the HTTPS URL and export:
+export CONSCIOUSDB_API="https://<cloud-run-url>"
+streamlit run demo/streamlit_app.py
+```
+Recommended hardening before sharing externally:
+- Set `API_KEYS` and distribute a single evaluation key.
+- Configure Cloud Armor / request quotas if exposure expected.
+- Periodically rotate the evaluation key; disable write paths if you later add ingestion.
+
+### 3. Colab Notebook (shareable)
+Create a new Colab and run:
+```python
+!pip install consciousdb-sidecar[embedders-sentencetransformers]
+import requests, json
+API="https://<cloud-run-url>"
+resp = requests.post(f"{API}/query", json={"query":"vector governance controls","k":6,"m":400})
+print(json.dumps(resp.json()["diagnostics"], indent=2))
+```
+Enhance with: bar chart of per-item coherence drops, redundancy vs ΔH scatter, iterative residual trace (if you expose it later).
+
+### Receipt Exploration Ideas
+- Compare `align` vs `baseline_align` uplift distribution.
+- Visualize top-k neighbor graph (weights from `neighbors`).
+- Monitor solver efficiency: `coh_drop_total / solve_ms`.
+
+### Next After Demo
+1. Benchmark report (ΔH vs vanilla retrieval quality on a known eval set).
+2. Early design partner case study (before/after search quality & cost metrics).
+3. Sales deck section embedding a GIF of the Streamlit demo (narrated receipt walkthrough).
+
+---
 
 ---
 

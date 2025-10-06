@@ -10,6 +10,7 @@ Design notes:
 - Thread safety: naive; FastAPI default workers (single-thread) fine for scaffold.
 - Feature-gated via `ENABLE_ADAPTIVE` in settings; no-op if disabled.
 """
+
 from __future__ import annotations
 
 import json
@@ -22,6 +23,7 @@ MAX_EVENTS = 200  # ring buffer limit
 MIN_SAMPLE = 15
 DEFAULT_BANDIT_ARMS = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
 
+
 @dataclass
 class BanditArm:
     alpha: float
@@ -31,6 +33,7 @@ class BanditArm:
     @property
     def avg_reward(self) -> float:
         return self.reward_sum / self.pulls if self.pulls > 0 else 0.0
+
 
 @dataclass
 class FeedbackEvent:
@@ -45,9 +48,7 @@ class AdaptiveState:
     suggested_alpha: float | None = None
     last_computed_on: int = 0  # simple counter of events
     # Bandit
-    bandit_arms: list[BanditArm] = field(
-        default_factory=lambda: [BanditArm(a) for a in DEFAULT_BANDIT_ARMS]
-    )
+    bandit_arms: list[BanditArm] = field(default_factory=lambda: [BanditArm(a) for a in DEFAULT_BANDIT_ARMS])
     bandit_enabled: bool = False
     bandit_query_arm: dict[str, float] = field(
         default_factory=dict
@@ -127,8 +128,7 @@ def save_state(path: str) -> None:
             ],
             "bandit": {
                 "arms": [
-                    {"alpha": arm.alpha, "pulls": arm.pulls, "reward_sum": arm.reward_sum}
-                    for arm in STATE.bandit_arms
+                    {"alpha": arm.alpha, "pulls": arm.pulls, "reward_sum": arm.reward_sum} for arm in STATE.bandit_arms
                 ]
             },
         }
@@ -148,11 +148,13 @@ def load_state(path: str) -> None:
             data = json.load(f)
         STATE.events.clear()
         for raw in data.get("events", [])[-MAX_EVENTS:]:
-            STATE.events.append(FeedbackEvent(
-                deltaH_total=float(raw.get("deltaH_total", 0.0)),
-                redundancy=float(raw.get("redundancy", 0.0)),
-                positive=bool(raw.get("positive", False))
-            ))
+            STATE.events.append(
+                FeedbackEvent(
+                    deltaH_total=float(raw.get("deltaH_total", 0.0)),
+                    redundancy=float(raw.get("redundancy", 0.0)),
+                    positive=bool(raw.get("positive", False)),
+                )
+            )
         STATE.suggested_alpha = data.get("suggested_alpha")
         STATE.last_computed_on = len(STATE.events)
         # Load bandit arms if present
@@ -196,10 +198,11 @@ def bandit_select(query_id: str) -> float | None:
             return arm.alpha
     total_pulls = sum(a.pulls for a in arms)
     import math as _m
-    best_alpha = None
+
+    best_alpha: float | None = None
     best_score = -1e9
     for arm in arms:
-        ucb = arm.avg_reward + (2.0 * (_m.log(total_pulls) / arm.pulls) ) ** 0.5
+        ucb = arm.avg_reward + (2.0 * (_m.log(total_pulls) / arm.pulls)) ** 0.5
         if ucb > best_score:
             best_score = ucb
             best_alpha = arm.alpha
@@ -208,6 +211,8 @@ def bandit_select(query_id: str) -> float | None:
         if arm.alpha == best_alpha:
             arm.pulls += 1
             break
+    if best_alpha is None:
+        return None
     STATE.bandit_query_arm[query_id] = best_alpha
     # Simple eviction of old query_ids to prevent unbounded growth
     if len(STATE.bandit_query_arm) > 2000:

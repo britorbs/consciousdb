@@ -13,7 +13,8 @@ def jacobi_precond_diag(
     lambda_q: float,
 ) -> np.ndarray:
     diag_L = L.diagonal()
-    return lambda_g + lambda_c * diag_L + lambda_q * B_diag
+    return np.asarray(lambda_g + lambda_c * diag_L + lambda_q * B_diag, dtype=np.float64)
+
 
 def apply_M(
     Q: np.ndarray,
@@ -23,7 +24,9 @@ def apply_M(
     B_diag: np.ndarray,
     lambda_q: float,
 ) -> np.ndarray:
-    return lambda_g * Q + lambda_c * (L @ Q) + lambda_q * (B_diag[:, None] * Q)
+    out = lambda_g * Q + lambda_c * (L @ Q) + lambda_q * (B_diag[:, None] * Q)
+    return np.asarray(out, dtype=Q.dtype)
+
 
 def solve_block_cg(
     L: sparse.csr_matrix,

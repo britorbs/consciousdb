@@ -45,7 +45,7 @@ class JsonFormatter(logging.Formatter):
             ):
                 if not k.startswith("_"):
                     payload[k] = v
-        if record.exc_info:
+        if record.exc_info and record.exc_info[0] is not None:
             payload["exc_type"] = record.exc_info[0].__name__
         return json.dumps(payload, ensure_ascii=False)
 

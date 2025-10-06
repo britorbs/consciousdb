@@ -33,4 +33,4 @@ class MemoryConnector(BaseConnector):
     def fetch_vectors(self, ids: list[str]) -> np.ndarray:
         # Naive mapping by index in name (only for dev)
         idxs = [int(x.split(":")[-1]) for x in ids]
-        return self.X[idxs]
+        return np.asarray(self.X[idxs], dtype=np.float32)

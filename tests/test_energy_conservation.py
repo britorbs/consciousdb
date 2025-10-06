@@ -1,45 +1,28 @@
-import importlib
-import os
-
 from fastapi.testclient import TestClient
 
-
-def build_app():
-    # Reload settings first so that FORCE_LEGACY_COH / USE_NORMALIZED_COH changes take effect
-    import infra.settings as settings_mod
-    import api.main as main_mod  # local import for reloadability
-
-    importlib.reload(settings_mod)
-    importlib.reload(main_mod)
-    return main_mod.app
+from api.main import app
 
 
-def run(flag: bool):
-    if flag:
-        os.environ["USE_NORMALIZED_COH"] = "true"
-        os.environ.pop("FORCE_LEGACY_COH", None)
-    else:
-        # Force legacy via escape hatch now that normalization is default
-        os.environ["FORCE_LEGACY_COH"] = "true"
-        os.environ.pop("USE_NORMALIZED_COH", None)
-    client = TestClient(build_app())
-    req = {
-        "query": "energy identity test",
-        "k": 5,
-        "m": 120,
-        "overrides": {
-            # Force full pipeline (avoid easy gate & low-impact gate)
-            "similarity_gap_margin": 10.0,
-            "coh_drop_min": 0.0,
-            "iters_cap": 12,
+def _run():
+    client = TestClient(app)
+    r = client.post(
+        "/query",
+        json={
+            "query": "energy identity test",
+            "k": 5,
+            "m": 120,
+            "overrides": {
+                "similarity_gap_margin": 10.0,
+                "coh_drop_min": 0.0,
+                "iters_cap": 12,
+            },
         },
-    }
-    r = client.post("/query", json=req)
-    assert r.status_code == 200, r.text
+    )
+    assert r.status_code == 200
     return r.json()
 
 
-def assert_conservation(resp: dict):
+def _assert_conservation(resp: dict):
     diag = resp["diagnostics"]
     items = resp["items"]
     # Sum per-item coherence_drop
@@ -61,14 +44,6 @@ def assert_conservation(resp: dict):
         assert 0.01 <= frac <= 1.01
 
 
-def test_energy_conservation_legacy():
-    resp = run(False)
-    assert resp["diagnostics"].get("coherence_mode") == "legacy"
-    assert_conservation(resp)
-
-
 def test_energy_conservation_normalized():
-    resp = run(True)
-    # Allow fallback to legacy if flag race, but still assert conservation
-    assert resp["diagnostics"].get("coherence_mode") in ("normalized", "legacy")
-    assert_conservation(resp)
+    resp = _run()
+    _assert_conservation(resp)

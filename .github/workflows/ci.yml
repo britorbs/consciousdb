@@ -47,7 +47,7 @@ jobs:
             import xml.etree.ElementTree as ET, sys
             root = ET.parse('coverage.xml').getroot()
             rate = float(root.get('line-rate', '0')) * 100
-            threshold = 60.0
+            threshold = 85.0
             print(f"Line coverage: {rate:.2f}% (threshold {threshold}%)")
             if rate < threshold:
                 print("::error::Coverage below threshold")

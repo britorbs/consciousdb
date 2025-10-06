@@ -1,6 +1,6 @@
 # API
 
-This document summarizes the primary HTTP endpoints. For the explainability receipt schema see `RECEIPTS.md`.
+This document summarizes the primary HTTP endpoints. Receipt schema is v2 (normalized-only). See `RECEIPTS.md` for full field semantics.
 
 ## POST /query
 
@@ -20,7 +20,7 @@ Initiate a retrieval + (optionally) coherence optimization solve.
     "iters_cap": 20,                    // CG iterations cap
     "residual_tol": 0.001,
     "force_fallback": false,            // Force vector-only path for testing
-    "enable_mmr": false                 // Optional per-request diversification override
+  "enable_mmr": false                 // Optional per-request diversification override (global ENABLE_MMR can force)
   }
 }
 ```
@@ -43,9 +43,8 @@ Initiate a retrieval + (optionally) coherence optimization solve.
     }
   ],
   "diagnostics": {
-    "receipt_version": 1,
+    "receipt_version": 2,
     "deltaH_total": 2.314,
-    "coh_drop_total": 2.314,            // Deprecated alias (see Deprecations)
     "redundancy": 0.31,
     "similarity_gap": 0.42,
     "used_deltaH": true,
@@ -62,7 +61,9 @@ Initiate a retrieval + (optionally) coherence optimization solve.
     "suggested_alpha": 0.12,            // Present when ENABLE_ADAPTIVE=true after warmup
     "applied_alpha": 0.12,              // Final alpha used (may equal manual, suggested, or bandit)
     "alpha_source": "suggested",       // manual | suggested | bandit
-    "query_id": "0f5d4c1a-...",        // Correlates with /feedback
+  "query_id": "0f5d4c1a-...",        // Present when adaptive enabled (correlates with /feedback)
+  "deltaH_trace": 2.314,
+  "deltaH_scope_diff": 0.361,
     "timings_ms": {
       "embed": 3.1,
       "ann": 18.6,
@@ -78,7 +79,7 @@ Initiate a retrieval + (optionally) coherence optimization solve.
 
 ### Notes
 - If the easy-query gate triggers (high similarity gap) or low-impact gate fires, `used_deltaH` will be false and coherence terms may be absent or zeroed; neighbors list may be empty.
-- `coh_drop_total` will be removed after migration; rely on `deltaH_total`.
+- `deltaH_scope_diff` is informational (scope divergence); large values are normal when k ≪ m.
 - `suggested_alpha`, `applied_alpha`, `alpha_source`, and `query_id` appear only when adaptive features are enabled.
 - Fallback path populates `fallback=true` and a `fallback_reason` (comma-separated if multiple conditions).
 
@@ -118,9 +119,6 @@ Lightweight readiness probe; includes embedder dimension, expected dimension, an
 
 ## Metrics
 Prometheus exposition at `/metrics` (histograms: latency, solve_ms, rank_ms, redundancy, deltaH_total; counters: gates, fallback reasons, adaptive events, bandit selections). See OPERATIONS.md (planned) for full catalog.
-
-## Deprecations
-- `coh_drop_total` (alias of `deltaH_total`) – slated for removal after two minor versions; clients should migrate now.
 
 ## Feature Flags (env)
 - `ENABLE_ADAPTIVE`, `ENABLE_ADAPTIVE_APPLY`, `ENABLE_BANDIT`, `ENABLE_AUDIT_LOG` – control presence of adaptive & audit fields.

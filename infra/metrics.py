@@ -55,17 +55,11 @@ RECEIPT_COMPLETENESS = Gauge(
     "Fraction of optional receipt fields present (deltaH_total, neighbors, redundancy)",
 )
 
-# Normalization adoption counter
-COHERENCE_MODE_COUNT = Counter(
-    "conscious_coherence_mode_total",
-    "Count of queries by coherence attribution mode",
-    ["mode"],
-)
 
-# Phase 1 normalization monitoring: deltaH relative difference distribution
-DELTAH_REL_DIFF = Histogram(
-    "conscious_deltaH_rel_diff",
-    "Relative difference between trace forms (full vs top-k) or between legacy and normalized during migration",
+# Scope difference distribution (full candidate set trace vs returned top-k component sum)
+DELTAH_SCOPE_DIFF = Histogram(
+    "conscious_deltaH_scope_diff",
+    "Relative scope difference between full candidate-set ΔH trace and top-k component-sum trace",
     buckets=(1e-6, 1e-5, 1e-4, 5e-4, 1e-3, 5e-3, 1e-2),
 )
 

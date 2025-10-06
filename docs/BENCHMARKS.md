@@ -1,4 +1,90 @@
-# Benchmark & Uplift Methodology
+# Benchmark Methodology
+
+This document describes how to measure retrieval uplift and operational cost for ConsciousDB vs a vanilla cosine baseline (and optional rerankers).
+
+## Objectives
+1. Quantify ranking quality improvement (nDCG@K, MRR@K) produced by coherence optimization and optional MMR diversification.
+2. Measure latency overhead and solver efficiency (ΔH per millisecond) relative to baseline.
+3. Capture explainability value surface (receipt completeness vs opaque scores).
+
+## Metrics
+| Category | Metric | Description |
+|----------|--------|-------------|
+| Quality | nDCG@K | Discounted gain using binary or graded relevance |
+| Quality | MRR@K | Reciprocal rank of first relevant item |
+| Quality (future) | Recall@K | Fraction of gold set retrieved |
+| Explainability | ΔH distribution | Histogram / summary of `deltaH_total` showing structural uplift |
+| Explainability | coherence_fraction | Share of ΔH attributable to Laplacian term |
+| Performance | P95 latency | End-to-end sidecar latency over queries |
+| Performance | Solver efficiency | ΔH_total / solve_ms (higher is better) |
+| Stability | κ(M) bound p95 | Conditioning bound distribution (optional gate) |
+
+## Methods Compared
+| Method Key | Description |
+|------------|-------------|
+| Cosine | Pure ANN / cosine ranking (no structural solve) |
+| ConsciousDB | Coherence solve + structural blend (alpha) |
+| ConsciousDB+MMR | Above + diversification (conditional MMR) |
+| Reranker-X (optional) | External transformer reranker baseline (not implemented in repo) |
+
+## Synthetic Dataset Procedure
+1. Generate corpus embeddings (normalized Gaussian) of size N (default 500).
+2. For each query create a vector; mark top-3 cosine neighbors as relevant set.
+3. Evaluate each method's top-K list (default K=10) against the synthetic relevance set.
+4. Compute metrics and uplifts vs baseline.
+
+Synthetic limitations: relevance is purely cosine-based; structural uplift may appear modest if coherence correlates strongly with baseline similarity. Real datasets (MS MARCO, NQ) introduce semantic variation benefiting structure smoothing.
+
+## Real Dataset Integration (Deferred)
+To evaluate on public corpora:
+1. Preprocess queries and qrels into `queries.jsonl`, `qrels.jsonl` (see `benchmarks/datasets.py`).
+2. Generate / load corpus embeddings accessible to the connector (e.g., ingest into Pinecone or pgvector).
+3. Run sidecar pointing at that backend with `USE_MOCK=false`.
+4. Use `benchmarks/run_benchmark.py --dataset-root <path> --k 10 --m 400` (extension required to fetch actual ANN results; current script implements synthetic path only).
+
+## Report Format
+Markdown table with absolute metrics and uplift percentages, plus a JSON artifact for downstream plotting / dashboards.
+
+Example (illustrative numbers):
+
+| Method | nDCG@10 | MRR@10 | P95 Lat (ms) | Avg ΔH | Explainability | nDCG Uplift % | MRR Uplift % |
+|--------|---------|--------|--------------|--------|----------------|---------------|--------------|
+| Cosine | 0.4200 | 0.3800 | 12.0 | 0.0000 | none | - | - |
+| ConsciousDB | 0.5100 | 0.4500 | 48.0 | 2.3100 | receipt | 21.43 | 18.42 |
+| ConsciousDB+MMR | 0.5050 | 0.4480 | 52.0 | 2.2800 | receipt | 20.24 | 17.89 |
+
+> MMR can slightly trade off MRR if diversification displaces the first relevant doc while improving broader coverage metrics.
+
+## Interpreting ΔH
+`deltaH_total` is an energy improvement; higher typical values indicate stronger structural incoherence corrected by optimization. Pairing uplift with ΔH distribution demonstrates that *explainability* (receipt) correlates with measurable ranking gain.
+
+## Extending the Suite
+Planned enhancements:
+- Graded relevance (gain values) from MS MARCO BM25 judgments.
+- Recall@K and MAP.
+- Cumulative throughput & cost simulation (CPU time vs GPU reranker cost).
+- Confidence intervals via bootstrap resampling.
+- Latency decomposition percentiles (embed / ann / build / solve / rank).
+- Comparative reranker baseline (e.g., cross-encoder). *Out-of-scope for open-core; added in premium eval toolkit.*
+
+## Running the Synthetic Benchmark
+```bash
+# Ensure sidecar running locally (mock connector for speed)
+$env:USE_MOCK = 'true'
+uvicorn api.main:app --port 8080 --workers 1
+
+# New terminal
+python -m pip install -e .[bench]
+python -m benchmarks.run_benchmark --synthetic --queries 50 --k 10 --m 400 --output benchmark_report.md --json benchmark_report.json
+```
+Output:
+- `benchmark_report.md` – human-readable table.
+- `benchmark_report.json` – structured artifact for charts.
+
+## Governance & Regression
+Integrate a reduced-query smoke benchmark (e.g., 10 queries) into CI (scheduled) asserting minimum uplift thresholds once you have stable empirical baselines (e.g., nDCG uplift ≥ 10%). Avoid gating the main PR flow until variance characterized.
+
+---# Benchmark & Uplift Methodology
 
 Establish consistent measurement of relevance uplift, latency, and stability.
 

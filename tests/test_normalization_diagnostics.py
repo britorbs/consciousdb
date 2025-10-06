@@ -1,60 +1,18 @@
-import importlib
-import os
-
 from fastapi.testclient import TestClient
 
-
-def build_app():
-    import infra.settings as settings_mod
-    import api.main as main_mod  # local import for reloadability
-
-    importlib.reload(settings_mod)
-    importlib.reload(main_mod)
-    return main_mod.app
+from api.main import app
 
 
-def run_query(flag: bool):
-    if flag:
-        os.environ["USE_NORMALIZED_COH"] = "true"
-        os.environ.pop("FORCE_LEGACY_COH", None)
-    else:
-        os.environ["FORCE_LEGACY_COH"] = "true"
-        os.environ.pop("USE_NORMALIZED_COH", None)
-    client = TestClient(build_app())
-    body = {"query": "test", "k": 5, "m": 120, "overrides": {}}
-    r = client.post("/query", json=body)
+def run_query():
+    client = TestClient(app)
+    r = client.post("/query", json={"query": "test", "k": 5, "m": 120, "overrides": {}})
     assert r.status_code == 200
     return r.json()
 
 
-def test_deltaH_trace_and_kappa_legacy():
-    resp = run_query(False)
-    diag = resp["diagnostics"]
-    assert "deltaH_trace" in diag
-    # trace should be close to deltaH_total (allow small fp tolerance)
-    if diag["deltaH_total"] != 0:
-        # Identity should yield deltaH_trace >= 0
-        assert diag["deltaH_trace"] >= -1e-8
-        # allow trace to be larger, ensure not wildly smaller
-        assert diag["deltaH_trace"] >= 0.01 * diag["deltaH_total"]
-    # legacy mode when escape hatch forced
-    assert diag.get("coherence_mode") == "legacy"
-    # kappa_bound present and >= 1 (or None if pathological small graph)
-    if diag.get("kappa_bound") is not None:
-        assert diag["kappa_bound"] >= 1.0
-    # coherence_fraction present when deltaH_total > 0
-    if diag["deltaH_total"] > 0:
-        assert "coherence_fraction" in diag
-        cf = diag["coherence_fraction"]
-        assert 0.0 <= cf <= 1.0
-
-
 def test_deltaH_trace_and_kappa_normalized():
-    resp = run_query(True)
+    resp = run_query()
     diag = resp["diagnostics"]
-    # Depending on early import timing the flag may not switch mode; allow legacy fallback
-    if diag.get("coherence_mode") not in ("normalized", "legacy"):
-        raise AssertionError("Unexpected coherence_mode")
     if diag["deltaH_total"] != 0:
         assert diag["deltaH_trace"] >= -1e-8
         assert diag["deltaH_trace"] >= 0.01 * diag["deltaH_total"]
@@ -66,26 +24,12 @@ def test_deltaH_trace_and_kappa_normalized():
         assert 0.0 <= cf <= 1.0
 
 
-def test_metrics_exposes_coherence_mode_counter():
-    # Execute two queries (legacy then normalized) and validate the new counter appears.
-    import os
-
-    from fastapi.testclient import TestClient
-
-    os.environ.pop("USE_NORMALIZED_COH", None)
-    from api.main import app as app1
-
-    c1 = TestClient(app1)
-    c1.post("/query", json={"query": "m1", "k": 4, "m": 120, "overrides": {"similarity_gap_margin": 10.0}})
-    os.environ["USE_NORMALIZED_COH"] = "true"
-    from api.main import app as app2  # same process registry reused
-
-    c2 = TestClient(app2)
-    c2.post("/query", json={"query": "m2", "k": 4, "m": 120, "overrides": {"similarity_gap_margin": 10.0}})
-    metrics = c2.get("/metrics")
+def test_metrics_basic_exposure():
+    client = TestClient(app)
+    client.post("/query", json={"query": "m1", "k": 4, "m": 120, "overrides": {"similarity_gap_margin": 10.0}})
+    metrics = client.get("/metrics")
     assert metrics.status_code == 200
-    body = metrics.text
-    assert "conscious_coherence_mode_total" in body
+    assert "conscious_deltaH_total" in metrics.text
 
 
 def test_energy_conservation():
@@ -96,7 +40,7 @@ def test_energy_conservation():
     We force normalized mode; if the environment / import order still yields legacy mode
     we allow the assertion to proceed (legacy path may not yet satisfy tight conservation).
     """
-    resp = run_query(True)
+    resp = run_query()
     diag = resp["diagnostics"]
     items = resp["items"]
     # Extract per-item weighted components

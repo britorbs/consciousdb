@@ -58,8 +58,5 @@ class Settings(BaseModel):
     # Adaptive persistence path (for adaptive/ bandit state); JSON snapshot
     adaptive_state_path: str = os.getenv("ADAPTIVE_STATE_PATH", "adaptive_state.json")
     audit_hmac_key: str | None = os.getenv("AUDIT_HMAC_KEY")
-    # Normalization migration flag (Phase 2: default true). An escape hatch FORCE_LEGACY_COH can
-    # override this to re-enable legacy attribution for one minor release window.
-    _force_legacy = os.getenv("FORCE_LEGACY_COH", "false").lower() in ("1", "true", "yes")
-    _norm_default = os.getenv("USE_NORMALIZED_COH", "true").lower() in ("1", "true", "yes")
-    use_normalized_coh: bool = False if _force_legacy else _norm_default
+    # Phase 3 cleanup: normalization is permanent; legacy flags removed.
+    use_normalized_coh: bool = True  # retained for backward compatibility in code paths

@@ -13,7 +13,7 @@ def test_bandit_selection_and_reward(monkeypatch):
     # issue a few queries to pull initial arms
     qids = []
     for _ in range(4):
-        r = client.post("/query", json={"query":"bandit test", "k":4, "m":140, "overrides": {"alpha_deltaH": 0.1}})
+        r = client.post("/query", json={"query": "bandit test", "k": 4, "m": 140, "overrides": {"alpha_deltaH": 0.1}})
         assert r.status_code == 200
         qids.append(r.json().get("query_id"))
     # Provide feedback marking some as positive
