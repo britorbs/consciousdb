@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+import warnings
 
 import numpy as np
 from scipy import sparse
@@ -79,26 +80,30 @@ def solve_block_cg(
         # SciPy <1.11 uses 'tol' and ignores 'rtol'; newer versions warn on 'tol' and prefer 'rtol'.
         # We first try modern signature (rtol, atol); if TypeError, fall back to legacy tol.
         try:
-            x, info = cg(
-                Aop,
-                rhs,
-                x0=x0,
-                rtol=residual_tol,  # preferred in newer SciPy
-                maxiter=iters_cap,
-                M=M_inv,
-                callback=cb,
-                atol=0.0,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=DeprecationWarning)
+                x, info = cg(
+                    Aop,
+                    rhs,
+                    x0=x0,
+                    rtol=residual_tol,  # preferred in newer SciPy
+                    maxiter=iters_cap,
+                    M=M_inv,
+                    callback=cb,
+                    atol=0.0,
+                )
         except TypeError:
-            x, info = cg(
-                Aop,
-                rhs,
-                x0=x0,
-                tol=residual_tol,
-                maxiter=iters_cap,
-                M=M_inv,
-                callback=cb,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=DeprecationWarning)
+                x, info = cg(
+                    Aop,
+                    rhs,
+                    x0=x0,
+                    tol=residual_tol,
+                    maxiter=iters_cap,
+                    M=M_inv,
+                    callback=cb,
+                )
         # If converged early, iter_counter["n"] is actual iterations; if not converged (info>0) it is == iters_cap
         used = iter_counter["n"] if info == 0 else iters_cap
         iters[k] = used

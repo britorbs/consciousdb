@@ -49,9 +49,15 @@ def _stub_solve_query(query: str, k: int, m: int, connector, embedder, overrides
 
 
 @pytest.fixture(autouse=True)
-def patch_solve_query(monkeypatch):  # noqa: D401
-    # Only patch if real solve_query missing or we explicitly want isolation.
-    monkeypatch.setattr(client_mod, "solve_query", _stub_solve_query, raising=False)
+def patch_solve_query(monkeypatch, request):  # noqa: D401
+    """Autouse patch for solve_query; disabled when test opts into real solver.
+
+    Tests can opt-out of the stub by adding the marker ``@pytest.mark.real_solver``.
+    An environment variable ``REAL_SOLVER=1`` also disables the stub globally.
+    """
+    use_real = bool(os.getenv("REAL_SOLVER")) or request.node.get_closest_marker("real_solver") is not None
+    if not use_real:
+        monkeypatch.setattr(client_mod, "solve_query", _stub_solve_query, raising=False)
     yield
 
 

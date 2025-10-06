@@ -251,6 +251,25 @@ python examples/quickstart_sdk.py
 ```
 Outputs top results and `deltaH_total` plus demonstrates both `ConsciousClient` and direct `solve_query` usage.
 
+## 🧪 Testing & Coverage Strategy
+The test suite uses a dual-mode approach to balance speed and authentic solver coverage:
+
+- Default: a lightweight stub of `solve_query` (activated via an autouse fixture) speeds up most tests.
+- Opt-in real solver: mark tests with `@pytest.mark.real_solver` (or set env `REAL_SOLVER=1`) to exercise the full CG solve, energy decomposition, ranking, and MMR logic.
+
+Why: The energy solve touches numerical branches (gating, fallback, redundancy, mmr) that would otherwise show as uncovered. By only enabling it where needed we keep total runtime low while keeping coverage >85% on core engine modules.
+
+Key real-solver tests:
+- `tests/test_real_solver_path.py` – full end-to-end receipt & energy path.
+- `tests/test_rank_energy_mm.py` – MMR path, redundancy computation.
+- `tests/test_solver_branches.py` – baseline early gate and forced fallback branches.
+
+To run the full suite with authentic solver paths:
+```powershell
+$env:REAL_SOLVER='1'; pytest -q --cov=engine
+```
+(Or selectively remove the stub fixture in `tests/conftest.py`).
+
 ## 🔐 License
 Business Source License 1.1 → converts to Apache 2.0 on **2028‑10‑05**. Evaluation & internal non‑prod use are free; commercial prod use requires a commercial grant until the change date. See `LICENSE` + `docs/LICENSING.md`.
 

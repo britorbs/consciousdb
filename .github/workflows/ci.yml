@@ -23,11 +23,11 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install project (core + dev + server)
+      - name: Install project (editable core + dev + server)
         run: |
           pip install --upgrade pip
-          # Include server extras so FastAPI (and related deps) are available for tests using TestClient
-          pip install .[dev,security,server]
+          # Editable install so coverage maps executed code to repo sources
+          pip install -e .[dev,security,server]
           pip install build
           # Optional: warm caches for ruff/mypy if needed later
 
